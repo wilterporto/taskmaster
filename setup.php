@@ -1,5 +1,5 @@
 <?php
-define('TASKMASTER_VERSION', '1.1.0');
+define('TASKMASTER_VERSION', '1.2.0');
 define('TASKMASTER_DIR', dirname(__FILE__));
 
 /**
@@ -13,7 +13,6 @@ function plugin_init_taskmaster() {
     $PLUGIN_HOOKS['csrf_compliant']['taskmaster'] = true;
 
     // Configuração de classes
-    Plugin::registerClass('PluginTaskmasterConfig', ['addtabon' => ['Config']]);
     Plugin::registerClass('PluginTaskmasterProfile', ['addtabon' => ['Profile']]);
     Plugin::registerClass('PluginTaskmasterModule', ['addtabon' => ['PluginTaskmasterModule']]);
     Plugin::registerClass('PluginTaskmasterTask', ['addtabon' => ['PluginTaskmasterModule', 'PluginTaskmasterTask']]);
@@ -22,23 +21,17 @@ function plugin_init_taskmaster() {
     Plugin::registerClass('PluginTaskmasterImplementationTask');
     Plugin::registerClass('PluginTaskmasterImplementationSubtask');
 
-    // Menus — Implantações: visível para quem tem acesso impl
+    // Menus
     $menuItems = [];
-    if (Session::haveRight('plugin_taskmaster_impl', READ)) {
+    if (Session::haveRight('plugin_taskmaster_implementation', READ)) {
         $menuItems[] = 'PluginTaskmasterImplementation';
     }
-    // Módulos e Config: somente para quem tem direito de gerenciar (admin)
-    if (Session::haveRight('plugin_taskmaster_manage', READ)) {
+    if (Session::haveRight('plugin_taskmaster_module', READ)) {
         $menuItems[] = 'PluginTaskmasterModule';
-        $menuItems[] = 'PluginTaskmasterConfig';
-    }
-    if (!empty($menuItems)) {
-        $PLUGIN_HOOKS['menu_toadd']['taskmaster'] = ['tools' => $menuItems];
     }
 
-    // Config page — somente admin
-    if (Session::haveRight('plugin_taskmaster_manage', READ)) {
-        $PLUGIN_HOOKS['config_page']['taskmaster'] = 'front/config.form.php';
+    if (!empty($menuItems)) {
+        $PLUGIN_HOOKS['menu_toadd']['taskmaster'] = ['tools' => $menuItems];
     }
 
     // Auto-update schema for new mandatory fields
@@ -74,29 +67,6 @@ function plugin_init_taskmaster() {
     if ($DB->tableExists('glpi_plugin_taskmaster_subtasks')) {
         if (!$DB->fieldExists('glpi_plugin_taskmaster_subtasks', 'is_active')) {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_subtasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1 ");
-        }
-    }
-
-    // Auto-correção de permissões: garante que perfis 'central' tenham direitos
-    if (Session::getLoginUserID()) {
-        $allRights = CREATE | READ | UPDATE | PURGE;
-        $profileId = $_SESSION['glpiactiveprofile']['id'] ?? 0;
-        if ($profileId > 0) {
-            foreach (['plugin_taskmaster_manage', 'plugin_taskmaster_impl'] as $rightName) {
-                $existing = $DB->request('glpi_profilerights', [
-                    'profiles_id' => $profileId,
-                    'name'        => $rightName
-                ]);
-                if (count($existing) == 0) {
-                    $DB->insert('glpi_profilerights', [
-                        'profiles_id' => $profileId,
-                        'name'        => $rightName,
-                        'rights'      => $allRights
-                    ]);
-                    // Atualiza sessão para refletir imediatamente
-                    $_SESSION['glpiactiveprofile'][$rightName] = $allRights;
-                }
-            }
         }
     }
 }

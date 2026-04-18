@@ -111,59 +111,6 @@ function plugin_taskmaster_install() {
         $DB->queryOrDie($query, "Error creating glpi_plugin_taskmaster_implementationsubtasks");
     }
 
-    if (!$DB->tableExists('glpi_plugin_taskmaster_configs')) {
-        $query = "CREATE TABLE `glpi_plugin_taskmaster_configs` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `name` VARCHAR(100) NOT NULL,
-            `value` TEXT,
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `name` (`name`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
-        $DB->queryOrDie($query, "Error creating glpi_plugin_taskmaster_configs");
-
-        // Insert initial configs
-        $DB->insert('glpi_plugin_taskmaster_configs', [
-            'name' => 'analyst_profiles',
-            'value' => '[]'
-        ]);
-        $DB->insert('glpi_plugin_taskmaster_configs', [
-            'name' => 'manager_profiles',
-            'value' => '[]'
-        ]);
-    }
-
-    // Rights migration - garante que os direitos existam na tabela
-    $allRights = CREATE | READ | UPDATE | PURGE;
-
-    // Busca todos os perfis com interface 'central' (administradores)
-    $profiles = $DB->request('glpi_profiles', ['interface' => 'central']);
-    foreach ($profiles as $profile) {
-        $pid = $profile['id'];
-
-        foreach (['plugin_taskmaster_manage', 'plugin_taskmaster_impl'] as $rightName) {
-            // Verifica se já existe o direito para este perfil
-            $existing = $DB->request('glpi_profilerights', [
-                'profiles_id' => $pid,
-                'name'        => $rightName
-            ]);
-            if (count($existing) == 0) {
-                $DB->insert('glpi_profilerights', [
-                    'profiles_id' => $pid,
-                    'name'        => $rightName,
-                    'rights'      => $allRights
-                ]);
-            } else {
-                // Atualiza para garantir permissões completas
-                $DB->update('glpi_profilerights', [
-                    'rights' => $allRights
-                ], [
-                    'profiles_id' => $pid,
-                    'name'        => $rightName
-                ]);
-            }
-        }
-    }
-
     $migration->executeMigration();
 
     return true;
@@ -184,8 +131,7 @@ function plugin_taskmaster_uninstall() {
         'glpi_plugin_taskmaster_implementations',
         'glpi_plugin_taskmaster_implementations_modules',
         'glpi_plugin_taskmaster_implementationtasks',
-        'glpi_plugin_taskmaster_implementationsubtasks',
-        'glpi_plugin_taskmaster_configs'
+        'glpi_plugin_taskmaster_implementationsubtasks'
     ];
 
     foreach ($tables as $table) {
@@ -193,11 +139,20 @@ function plugin_taskmaster_uninstall() {
     }
 
     $req = $DB->request('glpi_profilerights', [
-        'name' => ['plugin_taskmaster_manage', 'plugin_taskmaster_impl']
+        'name' => ['plugin_taskmaster_module', 'plugin_taskmaster_implementation']
     ]);
     foreach ($req as $row) {
         $DB->delete('glpi_profilerights', ['id' => $row['id']]);
     }
 
+    return true;
+}
+
+/**
+ * Upgrade hook
+ *
+ * @return boolean
+ */
+function plugin_taskmaster_upgrade() {
     return true;
 }

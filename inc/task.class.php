@@ -6,7 +6,7 @@ if (!defined('GLPI_ROOT')) {
 
 
 class PluginTaskmasterTask extends CommonDBTM {
-    static $rightname = 'plugin_taskmaster_manage';
+    static $rightname = 'plugin_taskmaster_module';
     public $dohistory = true;
 
     static function getTypeName($nb = 0) {
@@ -18,19 +18,19 @@ class PluginTaskmasterTask extends CommonDBTM {
     }
 
     static function canCreate() {
-        return Session::haveRight('plugin_taskmaster_manage', CREATE);
+        return Session::haveRight('plugin_taskmaster_module', CREATE);
     }
     
     static function canView() {
-        return Session::haveRight('plugin_taskmaster_manage', READ);
+        return Session::haveRight('plugin_taskmaster_module', READ);
     }
     
     static function canUpdate() {
-        return Session::haveRight('plugin_taskmaster_manage', UPDATE);
+        return Session::haveRight('plugin_taskmaster_module', UPDATE);
     }
     
     static function canDelete() {
-        return Session::haveRight('plugin_taskmaster_manage', PURGE);
+        return Session::haveRight('plugin_taskmaster_module', PURGE);
     }
 
     public function rawSearchOptions() {

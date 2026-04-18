@@ -5,7 +5,7 @@ if (!defined('GLPI_ROOT')) {
 }
 
 class PluginTaskmasterImplementationTask extends CommonDBTM {
-    static $rightname = 'plugin_taskmaster_impl';
+    static $rightname = 'plugin_taskmaster_implementation';
     public $dohistory = true;
 
     static function getTypeName($nb = 0) {
@@ -44,21 +44,20 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "</td>";
         echo "</tr>";
 
-        // Filtro de perfis para analistas
-        $analyst_profiles = json_decode(PluginTaskmasterConfig::getConfig('analyst_profiles') ?: '[]', true);
-        $user_options = ['name' => 'users_id_analyst', 'value' => $this->fields['users_id_analyst'], 'display_emptychoice' => true];
-        
-        if (!empty($analyst_profiles)) {
-            $profile_ids = implode(',', array_map('intval', $analyst_profiles));
-            $user_options['condition'] = ["`glpi_users`.`id` IN (SELECT `users_id` FROM `glpi_profiles_users` WHERE `profiles_id` IN ($profile_ids))"];
-        }
+        // Filtro: usuários que pertencem a perfis com direito de implantação no Taskmaster
+        $user_options = [
+            'name'                => 'users_id_analyst',
+            'value'               => $this->fields['users_id_analyst'],
+            'display_emptychoice' => true,
+            'required'            => true,
+            'condition'           => [
+                'id' => array_keys(ProfileRight::getProfilesForRight('plugin_taskmaster_implementation'))
+            ]
+        ];
 
         echo "<tr class='tab_bg_1'>";
         echo "<td><label for='users_id_analyst'>Analista Responsável <span style='color:red;'>*</span></label></td>";
         echo "<td>";
-        // Remove 'display_emptychoice' e adiciona required para obrigatoriedade nativa HTML (tenta, mas GLPI às vezes precisa de server-side)
-        $user_options['display_emptychoice'] = true; // Mantém para forçar seleção
-        $user_options['required'] = true;
         User::dropdown($user_options);
         echo "</td>";
         echo "</tr>";

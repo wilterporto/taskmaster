@@ -1,7 +1,7 @@
 # Taskmaster — Plugin para GLPI
 
 ![GLPI Version](https://img.shields.io/badge/GLPI-10.0%20%7C%2011.0-blue)
-![Version](https://img.shields.io/badge/Versão-1.1.0-orange)
+![Version](https://img.shields.io/badge/Versão-1.2.0-orange)
 ![License](https://img.shields.io/badge/License-GPL--2.0-green)
 ![Author](https://img.shields.io/badge/Autor-Wilter%20P.%20Porto-purple)
 
@@ -98,18 +98,14 @@ A partir da aba **Acompanhamento**, o botão **"Imprimir Relatório"** abre uma 
 
 ---
 
-### 🛡️ Administração e Permissões
+### 🛡️ Administração e Permissões (Nativo GLPI)
 
-Dois níveis de acesso distintos:
+A gestão de acesso foi descentralizada e integrada diretamente no recurso nativo de **Perfis** do GLPI. Não há mais uma tela de configuração isolada.
 
-| Direito | Perfil recomendado | Acesso |
-|---|---|---|
-| `plugin_taskmaster_manage` | Administrador | Módulos, Tarefas, Subtarefas e Configurações |
-| `plugin_taskmaster_impl` | Analista / Gestor | Implantações, Acompanhamento e Relatórios |
-
-- Configuração de perfis específicos autorizados a atuar como analistas responsáveis.
-- Permissões granulares de leitura, criação, edição e exclusão.
-- Auto-registro de permissões na primeira utilização pelo perfil ativo.
+- **Aba Taskmaster nos Perfis:** Configuração granular de permissões de Leitura ou Escrita diretamente no perfil do usuário.
+- **Cadastro do Módulo:** Controla o acesso à gestão de Módulos, Tarefas e Subtarefas.
+- **Registro de Implantação:** Controla o acesso ao workflow de implantações, analistas e acompanhamento.
+- **Filtro Inteligente de Analistas:** A listagem de analistas responsáveis nas tarefas é filtrada automaticamente com base nos perfis que possuem permissão de implantação habilitada conforme o direito `plugin_taskmaster_implementation`.
 
 ---
 
@@ -175,6 +171,7 @@ git clone https://github.com/seu-usuario/taskmaster.git taskmaster
 
 | Versão | Data | Alterações |
 |---|---|---|
+| **1.2.0** | Abr/2026 | **Descentralização total de permissões**: integração com a aba nativa de Perfis do GLPI; remoção da tela de configuração customizada; novo sistema de direitos granulares (`plugin_taskmaster_module` e `plugin_taskmaster_implementation`); filtro dinâmico de analistas por direito de perfil; correção de compatibilidade com GLPI 10 (CSRF e herança de classes). |
 | **1.1.0** | Abr/2026 | Progresso por módulo na tela de acompanhamento; **relatório dedicado de impressão/PDF** com progresso geral e por módulo em ordem alfabética; proteção contra exclusão com dependências; permissões granulares por perfil; reparação retroativa de vínculos; status "Não optante" com observação obrigatória; suporte a adição/remoção de módulos pós-criação |
 | **1.0.0** | Abr/2026 | Versão inicial: CRUD de módulos, tarefas e subtarefas; criação de implantações com geração automática de tarefas; barra de progresso global; listagem paginada |
 
