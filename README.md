@@ -135,7 +135,7 @@ Dois níveis de acesso distintos:
 
 | Componente | Versão mínima |
 |---|---|
-| GLPI | 10.0.0 (compatível até 12.x) |
+| GLPI | 10.0.0 (compatível até 11.x) |
 | PHP | 7.4 ou superior |
 | Banco de dados | MySQL 5.7+ / MariaDB 10.3+ |
 
