@@ -1,69 +1,169 @@
-# Taskmaster Impl - Plugin para GLPI
+# Taskmaster — Plugin para GLPI
 
-![GLPI Version](https://img.shields.io/badge/GLPI-10.0%20%7C%2011.0-blue)
+![GLPI Version](https://img.shields.io/badge/GLPI-10.0%20%7C%2011.0%20%7C%2012.0-blue)
+![Version](https://img.shields.io/badge/Versão-1.1.0-orange)
 ![License](https://img.shields.io/badge/License-GPL--2.0-green)
+![Author](https://img.shields.io/badge/Autor-Wilter%20P.%20Porto-purple)
 
-O **Taskmaster Impl** é um plugin robusto para o ecossistema GLPI, projetado para gerenciar e acompanhar processos de implantação de módulos complexos de forma estruturada, hierárquica e visual.
+O **Taskmaster** é um plugin para o ecossistema GLPI projetado para gerenciar e acompanhar processos de implantação de módulos de forma estruturada, hierárquica e visual. Equipes de TI e consultorias conseguem controlar implantações complexas dividindo-as em **Módulos**, **Tarefas** e **Subtarefas**, com visibilidade total do progresso em cada nível.
+
+---
 
 ## 🎯 Objetivo
 
-O objetivo principal do Taskmaster é permitir que equipes de TI e consultorias gerenciem implantações em larga escala, dividindo-as em **Módulos**, **Tarefas** e **Subtarefas**, garantindo o controle total sobre o progresso e a responsabilidade técnica de cada etapa.
+Permitir que equipes de TI e consultorias gerenciem implantações em larga escala com controle granular sobre progresso, responsabilidade técnica e status de execução de cada etapa — do módulo macro até a subtarefa mais atômica.
 
-## 🚀 Principais Funcionalidades
+---
 
-### 📋 Gestão de Estrutura
-- **Módulos:** Agrupadores de funcionalidades ou serviços (ex: Módulo Financeiro, Módulo de Inventário).
-- **Tarefas e Subtarefas:** Divisão atômica do trabalho necessário para implementar cada módulo.
-- **Hierarquia:** Suporte completo para vincular subtarefas a tarefas e tarefas a módulos.
+## 🚀 Funcionalidades
+
+### 📦 Gestão de Estrutura (Configuração)
+
+| Entidade | Descrição |
+|---|---|
+| **Módulo** | Agrupador de funcionalidades (ex: Módulo Financeiro, Inventário). Suporta ativação/desativação. |
+| **Tarefa** | Etapa de trabalho vinculada a um módulo. Pode ser marcada como ativa/inativa. |
+| **Subtarefa** | Divisão atômica de uma tarefa. Pode ser marcada como ativa/inativa. |
+
+- Proteção contra exclusão de entidades com dependências (módulos com tarefas, tarefas com subtarefas etc.).
+- Hierarquia completa: Módulo → Tarefa → Subtarefa.
+
+---
 
 ### 🏗️ Fluxo de Implantação
-- **Criação Direcionada:** Ao iniciar uma implantação, é obrigatório informar o nome, a entidade de destino, o **Analista Responsável Geral** e a **Data de Início**.
-- **Seleção de Módulos:** Possibilidade de selecionar múltiplos módulos pré-configurados no momento da criação.
-- **Acompanhamento Visual:** Barra de progresso dinâmica que calcula o percentual de conclusão baseado no status de todas as tarefas e subtarefas vinculadas.
 
-### 🛠️ Controle de Status e Execução
-- **Status Disponíveis:** 
-  - 🔘 Não iniciado
-  - 📅 Planejado
-  - 🔄 Em andamento
-  - ✅ Concluído
-  - ⚠️ **Não optante:** Status especial para itens que não serão implementados por decisão estratégica, exigindo justificativa obrigatória em campo de Observações (contabiliza positivamente no progresso).
-- **Responsabilidade:** Designação de analistas específicos para cada tarefa ou subtarefa.
-- **Datas:** Controle de data de início e conclusão por item.
+1. **Criação:** Ao criar uma implantação, são obrigatórios:
+   - Nome da implantação
+   - Entidade de destino
+   - Analista responsável geral
+   - Data de início
+   - Um ou mais módulos a implantar (seleção múltipla)
+
+2. **Geração automática:** Ao selecionar os módulos, todas as tarefas e subtarefas **ativas** são copiadas para a implantação automaticamente.
+
+3. **Acompanhamento:** Na aba **Acompanhamento** da implantação é possível:
+   - Visualizar o **resumo geral** (% concluído, contadores por status).
+   - Gerenciar módulos vinculados (adicionar novos ou remover em lote).
+   - Acompanhar **cada módulo individualmente** com sua própria barra de progresso.
+   - Editar o status, analista responsável, datas e observações de cada tarefa e subtarefa.
+
+---
+
+### 📊 Progresso por Módulo
+
+A tela de acompanhamento exibe, para **cada módulo vinculado**, uma barra de progresso individual calculada com base no status de todas as suas tarefas e subtarefas:
+
+| Faixa | Cor |
+|---|---|
+| 0% (nenhum item concluído) | 🔴 Vermelho |
+| 1% – 49% | 🟡 Laranja |
+| 50% – 99% | 🔵 Azul |
+| 100% (todos concluídos) | 🟢 Verde |
+
+O contador `X / Y itens concluídos` é exibido ao lado da barra para leitura rápida.
+
+---
+
+### 🛠️ Status de Execução
+
+| Código | Status | Contabiliza no progresso? |
+|---|---|---|
+| 0 | 🔘 Não iniciado | ❌ Não |
+| 1 | 📅 Planejado | ❌ Não |
+| 2 | 🔄 Em andamento | ❌ Não |
+| 3 | ✅ Concluído | ✅ Sim |
+| 4 | ⚠️ Não optante | ✅ Sim |
+
+> **Não optante:** Status especial para itens que não serão implementados por decisão estratégica. Exige preenchimento obrigatório do campo **Observações** e é contabilizado positivamente no percentual de progresso.
+
+---
 
 ### 🛡️ Administração e Permissões
-- Perfis de acesso distintos para **Gestores** (gerenciam módulos e configurações) e **Analistas** (executam o acompanhamento).
-- Configuração de perfis específicos permitidos para atuar como analistas.
+
+Dois níveis de acesso distintos:
+
+| Direito | Perfil recomendado | Acesso |
+|---|---|---|
+| `plugin_taskmaster_manage` | Administrador | Módulos, Tarefas, Subtarefas e Configurações |
+| `plugin_taskmaster_impl` | Analista / Gestor | Implantações e Acompanhamento |
+
+- Configuração de perfis específicos autorizados a atuar como analistas responsáveis.
+- Permissões granulares de leitura, criação, edição e exclusão.
+- Auto-registro de permissões na primeira utilização pelo perfil ativo.
+
+---
+
+### 🔒 Integridade de Dados
+
+- **Módulos** só podem ser excluídos se não possuírem tarefas vinculadas.
+- **Tarefas** só podem ser excluídas se não possuírem subtarefas vinculadas.
+- Módulos vinculados a uma implantação não podem ser removidos do sistema enquanto existir esse vínculo.
+
+---
+
+### 🎨 Interface e Usabilidade
+
+- Campos obrigatórios sinalizados com **asterisco vermelho (`*`)**.
+- Listagens paginadas com limite de **30 registros por página**.
+- Ícones representativos nos menus de **Ferramentas** para navegação intuitiva.
+- Compatível com o design Tabler UI do GLPI 10/11/12.
+- Reparação retroativa automática de vínculos de módulo em implantações antigas.
+
+---
 
 ## 💻 Requisitos Técnicos
 
-- **GLPI:** Versão 10.0.0 ou superior (compatível com GLPI 11).
-- **PHP:** 7.4 ou superior.
-- **Banco de Dados:** MariaDB ou MySQL.
+| Componente | Versão mínima |
+|---|---|
+| GLPI | 10.0.0 (compatível até 12.x) |
+| PHP | 7.4 ou superior |
+| Banco de dados | MySQL 5.7+ / MariaDB 10.3+ |
+
+---
 
 ## 📦 Instalação
 
-1. Clone este repositório no diretório de plugins do seu GLPI:
-   ```bash
-   cd glpi/plugins/
-   git clone https://github.com/seu-usuario/taskmaster.git
-   ```
-2. Acesse o GLPI no menu **Configurar > Plugins**.
-3. Localize o **Taskmaster Impl** e clique em **Instalar**.
-4. Após a instalação, clique em **Ativar**.
+```bash
+# 1. Clone o repositório no diretório de plugins do GLPI
+cd glpi/plugins/
+git clone https://github.com/seu-usuario/taskmaster.git taskmaster
 
-## 🎨 Interface e Usabilidade
+# 2. Acesse o GLPI: Configurar > Plugins
+# 3. Localize "Taskmaster" e clique em Instalar
+# 4. Após a instalação, clique em Ativar
+```
 
-O plugin segue as diretrizes de design moderno do GLPI (Tabler UI para versão 10+), com elementos visuais claros:
-- Campos obrigatórios sinalizados com **asterisco vermelho**.
-- Listagens paginadas (limite de 30 registros) para melhor performance.
-- Ícones representativos para facilitar a navegação nos menus de Ferramentas.
+> O plugin realiza a criação e atualização automática das tabelas necessárias durante a ativação e na inicialização (`setup.php`).
 
 ---
 
-### 📝 Licença
+## 🗃️ Estrutura de Tabelas
 
-Este plugin é distribuído sob a licença **GPLv2+**. Sinta-se à vontade para contribuir e sugerir melhorias!
+| Tabela | Descrição |
+|---|---|
+| `glpi_plugin_taskmaster_modules` | Cadastro de módulos |
+| `glpi_plugin_taskmaster_tasks` | Cadastro de tarefas por módulo |
+| `glpi_plugin_taskmaster_subtasks` | Cadastro de subtarefas por tarefa |
+| `glpi_plugin_taskmaster_implementations` | Implantações |
+| `glpi_plugin_taskmaster_implementations_modules` | Vínculo implantação ↔ módulo |
+| `glpi_plugin_taskmaster_implementationtasks` | Instâncias de tarefas por implantação |
+| `glpi_plugin_taskmaster_implementationsubtasks` | Instâncias de subtarefas por implantação |
 
 ---
-*Desenvolvido com foco em excelência e performance por Antigravity.*
+
+## 📝 Histórico de Versões
+
+| Versão | Data | Alterações |
+|---|---|---|
+| **1.1.0** | Abr/2026 | Progresso por módulo na tela de acompanhamento; proteção contra exclusão com dependências; permissões granulares por perfil; reparação retroativa de vínculos; status "Não optante" com observação obrigatória; suporte a adição/remoção de módulos pós-criação |
+| **1.0.0** | Abr/2026 | Versão inicial: CRUD de módulos, tarefas e subtarefas; criação de implantações com geração automática de tarefas; barra de progresso global; listagem paginada |
+
+---
+
+### 📄 Licença
+
+Distribuído sob a licença **GPLv2+**. Contribuições são bem-vindas!
+
+---
+
+*Desenvolvido por **Wilter P. Porto** com foco em excelência e performance.*

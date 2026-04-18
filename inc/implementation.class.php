@@ -403,7 +403,18 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         }
         
         $progress = $totalItems > 0 ? round(($doneItems / $totalItems) * 100, 2) : 0;
-        
+
+        // Botão de impressão do relatório
+        $reportUrl = $CFG_GLPI['root_doc'] . '/plugins/taskmaster/front/implementation.report.php?id=' . $id;
+        echo "<div style='text-align:right; margin-bottom:10px;'>";
+        echo "<a href='" . $reportUrl . "' target='_blank'
+                style='display:inline-flex; align-items:center; gap:6px; padding:7px 16px;
+                       background:#1a237e; color:#fff; border-radius:6px; text-decoration:none;
+                       font-size:13px; font-weight:600;'>
+                🖨️ Imprimir Relatório
+              </a>";
+        echo "</div>";
+
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixe'>";
         echo "<tr><th colspan='4'>Resumo da Implantação (" . $progress . "% Concluído)</th></tr>";
@@ -507,46 +518,120 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "</table>";
         Html::closeForm();
 
-        echo "<table class='tab_cadre_fixehov'>";
-        echo "<tr><th>Estrutura (Tarefa / Subtarefa)</th><th>Status</th><th>Analista</th><th>Ações</th></tr>";
-        
-        foreach ($tasks as $task) {
-            $taskObj = new PluginTaskmasterTask();
-            $taskObj->getFromDB($task['plugin_taskmaster_tasks_id']);
-            $analystName = '';
-            if ($task['users_id_analyst'] > 0) {
-                $user = new User();
-                $user->getFromDB($task['users_id_analyst']);
-                $analystName = $user->getName();
-            }
-            
-            echo "<tr style='background-color:#e2e2e2; font-weight:bold;'>";
-            echo "<td>".$taskObj->fields['name']."</td>";
-            echo "<td>".self::getStatusName($task['status'])."</td>";
-            echo "<td>".$analystName."</td>";
-            echo "<td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationtask.form.php?id=".$task['id']."'>Editar</a></td>";
-            echo "</tr>";
-            
-            foreach ($task['subtasks'] as $sub) {
-                $subObj = new PluginTaskmasterSubtask();
-                $subObj->getFromDB($sub['plugin_taskmaster_subtasks_id']);
-                
-                $analystSubName = '';
-                if ($sub['users_id_analyst'] > 0) {
-                    $userSub = new User();
-                    $userSub->getFromDB($sub['users_id_analyst']);
-                    $analystSubName = $userSub->getName();
-                }
+        // ---------------------------------------------------------------
+        // Estrutura agrupada por módulo com percentual de conclusão
+        // ---------------------------------------------------------------
 
-                echo "<tr>";
-                echo "<td style='padding-left:30px;'>↳ ".$subObj->fields['name']."</td>";
-                echo "<td>".self::getStatusName($sub['status'])."</td>";
-                echo "<td>".$analystSubName."</td>";
-                echo "<td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationsubtask.form.php?id=".$sub['id']."'>Editar</a></td>";
-                echo "</tr>";
+        // Agrupa tasks por módulo
+        $tasksByModule = [];
+        foreach ($tasks as $task) {
+            $tObj = new PluginTaskmasterTask();
+            if ($tObj->getFromDB($task['plugin_taskmaster_tasks_id'])) {
+                $moduleId = $tObj->fields['plugin_taskmaster_modules_id'];
+                $task['_task_name'] = $tObj->fields['name'];
+                $tasksByModule[$moduleId][] = $task;
             }
         }
-        
+
+        echo "<table class='tab_cadre_fixehov' style='width:100%;'>";
+
+        foreach ($addedModuleIds as $mId) {
+            $mod = new PluginTaskmasterModule();
+            if (!$mod->getFromDB($mId)) continue;
+
+            $moduleTasks   = $tasksByModule[$mId] ?? [];
+            $modTotal      = 0;
+            $modDone       = 0;
+
+            foreach ($moduleTasks as $mt) {
+                $modTotal++;
+                if ($mt['status'] == 3 || $mt['status'] == 4) $modDone++;
+                foreach ($mt['subtasks'] as $ms) {
+                    $modTotal++;
+                    if ($ms['status'] == 3 || $ms['status'] == 4) $modDone++;
+                }
+            }
+
+            $modProgress = $modTotal > 0 ? round(($modDone / $modTotal) * 100, 2) : 0;
+
+            // Cor da barra por faixa de progresso
+            $barColor = '#d9534f';
+            if ($modProgress == 100)      $barColor = '#5cb85c';
+            elseif ($modProgress >= 50)   $barColor = '#5bc0de';
+            elseif ($modProgress > 0)     $barColor = '#f0ad4e';
+            $textColor = $modProgress > 50 ? 'white' : '#333';
+
+            // Cabeçalho do módulo com barra de progresso
+            echo "<tr style='background-color:#c8daf5;'>";
+            echo "  <td colspan='4' style='padding:8px 10px;'>";
+            echo "    <div style='display:flex; align-items:center; gap:12px;'>";
+            echo "      <strong style='font-size:14px; white-space:nowrap;'><i class='fas fa-cube'></i> " . Html::cleanInputText($mod->fields['name']) . "</strong>";
+            echo "      <div style='flex:1; position:relative; background:#e9ecef; border-radius:6px; height:22px; min-width:120px; max-width:340px; overflow:hidden;'>";
+            echo "        <div style='width:{$modProgress}%; background:{$barColor}; height:100%; border-radius:6px; transition:width .4s;'></div>";
+            echo "        <span style='position:absolute; top:0; left:0; width:100%; text-align:center; line-height:22px; font-size:12px; font-weight:bold; color:{$textColor};'>{$modProgress}%</span>";
+            echo "      </div>";
+            echo "      <span style='font-size:12px; color:#555; white-space:nowrap;'>{$modDone} / {$modTotal} " . ($modTotal == 1 ? "item" : "itens") . " concluído" . ($modDone == 1 ? "" : "s") . "</span>";
+            echo "    </div>";
+            echo "  </td>";
+            echo "</tr>";
+
+            // Cabeçalho das colunas do módulo
+            echo "<tr style='background-color:#dde8f8;'>";
+            echo "  <th style='padding-left:12px;'>Tarefa / Subtarefa</th>";
+            echo "  <th>Status</th>";
+            echo "  <th>Analista</th>";
+            echo "  <th>Ações</th>";
+            echo "</tr>";
+
+            if (empty($moduleTasks)) {
+                echo "<tr class='tab_bg_1'>";
+                echo "  <td colspan='4' class='center' style='font-style:italic; color:#888;'>Nenhuma tarefa registrada para este módulo.</td>";
+                echo "</tr>";
+            } else {
+                foreach ($moduleTasks as $task) {
+                    $analystName = '';
+                    if ($task['users_id_analyst'] > 0) {
+                        $user = new User();
+                        $user->getFromDB($task['users_id_analyst']);
+                        $analystName = $user->getName();
+                    }
+
+                    echo "<tr style='background-color:#f0f4fc; font-weight:bold;'>";
+                    echo "  <td style='padding-left:16px;'>" . Html::cleanInputText($task['_task_name']) . "</td>";
+                    echo "  <td>" . self::getStatusName($task['status']) . "</td>";
+                    echo "  <td>" . Html::cleanInputText($analystName) . "</td>";
+                    echo "  <td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationtask.form.php?id=".$task['id']."'>Editar</a></td>";
+                    echo "</tr>";
+
+                    foreach ($task['subtasks'] as $sub) {
+                        $subObj = new PluginTaskmasterSubtask();
+                        $subObj->getFromDB($sub['plugin_taskmaster_subtasks_id']);
+
+                        $analystSubName = '';
+                        if ($sub['users_id_analyst'] > 0) {
+                            $userSub = new User();
+                            $userSub->getFromDB($sub['users_id_analyst']);
+                            $analystSubName = $userSub->getName();
+                        }
+
+                        echo "<tr class='tab_bg_1'>";
+                        echo "  <td style='padding-left:40px;'>↳ " . Html::cleanInputText($subObj->fields['name']) . "</td>";
+                        echo "  <td>" . self::getStatusName($sub['status']) . "</td>";
+                        echo "  <td>" . Html::cleanInputText($analystSubName) . "</td>";
+                        echo "  <td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationsubtask.form.php?id=".$sub['id']."'>Editar</a></td>";
+                        echo "</tr>";
+                    }
+                }
+            }
+
+            // Linha separadora entre módulos
+            echo "<tr><td colspan='4' style='height:12px; background:transparent;'></td></tr>";
+        }
+
+        if (empty($addedModuleIds)) {
+            echo "<tr><td colspan='4' class='center'>Nenhum módulo vinculado a esta implantação.</td></tr>";
+        }
+
         echo "</table></div>";
     }
 
