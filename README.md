@@ -1,6 +1,6 @@
 # Taskmaster — Plugin para GLPI
 
-![GLPI Version](https://img.shields.io/badge/GLPI-10.0%20%7C%2011.0%20%7C%2012.0-blue)
+![GLPI Version](https://img.shields.io/badge/GLPI-10.0%20%7C%2011.0-blue)
 ![Version](https://img.shields.io/badge/Versão-1.1.0-orange)
 ![License](https://img.shields.io/badge/License-GPL--2.0-green)
 ![Author](https://img.shields.io/badge/Autor-Wilter%20P.%20Porto-purple)
@@ -126,7 +126,7 @@ Dois níveis de acesso distintos:
 - Campos obrigatórios sinalizados com **asterisco vermelho (`*`)**.
 - Listagens paginadas com limite de **30 registros por página**.
 - Ícones representativos nos menus de **Ferramentas** para navegação intuitiva.
-- Compatível com o design Tabler UI do GLPI 10/11/12.
+- Compatível com o design Tabler UI do GLPI 10/11.
 - Reparação retroativa automática de vínculos de módulo em implantações antigas.
 
 ---
