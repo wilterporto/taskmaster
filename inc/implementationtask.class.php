@@ -12,6 +12,14 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         return _n('Tarefa da Implantação', 'Tarefas da Implantação', $nb, 'taskmaster');
     }
 
+    static function canView() {
+        return Session::haveRight(self::$rightname, READ);
+    }
+
+    static function canUpdate() {
+        return Session::haveRight(self::$rightname, UPDATE);
+    }
+
     public static function getSearchURL($full = true) {
         return PluginTaskmasterImplementation::getSearchURL($full);
     }
@@ -44,56 +52,58 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "</td>";
         echo "</tr>";
 
-        // Filtro: usuários que pertencem a perfis com direito de implantação no Taskmaster
-        $user_options = [
-            'name'                => 'users_id_analyst',
-            'value'               => $this->fields['users_id_analyst'],
-            'display_emptychoice' => true,
-            'required'            => true,
-            'condition'           => [
-                'id' => array_keys(ProfileRight::getProfilesForRight('plugin_taskmaster_implementation'))
-            ]
-        ];
-
         echo "<tr class='tab_bg_1'>";
         echo "<td><label for='users_id_analyst'>Analista Responsável <span style='color:red;'>*</span></label></td>";
         echo "<td>";
-        User::dropdown($user_options);
+        User::dropdown([
+            'name'                => 'users_id_analyst',
+            'value'               => $this->fields['users_id_analyst'],
+            'display_emptychoice' => true,
+            'required'            => true
+        ]);
         echo "</td>";
         echo "</tr>";
 
-        echo "<tr class='tab_bg_1'>";
+        echo "<tr class='tab_bg_1' id='row_date_start'>";
         echo "<td><label for='date_start'>Data Início</label></td>";
         echo "<td>";
         Html::showDateField('date_start', ['value' => $this->fields['date_start']]);
         echo "</td>";
         echo "</tr>";
 
-        echo "<tr class='tab_bg_1'>";
+        echo "<tr class='tab_bg_1' id='row_date_end'>";
         echo "<td><label for='date_end'>Data Fim</label></td>";
         echo "<td>";
         Html::showDateField('date_end', ['value' => $this->fields['date_end']]);
         echo "</td>";
         echo "</tr>";
 
-        echo "<tr class='tab_bg_1' id='row_observacoes' style='display:".($this->fields['status'] == 4 ? "table-row" : "none").";'>";
-        echo "<td><label for='observacoes'>Observações <span style='color:red;'>*</span></label></td>";
+        echo "<tr class='tab_bg_1' id='row_observacoes'>";
+        echo "<td><label for='observacoes'>Observações <span id='asterisk_obs' style='color:red; display:none;'>*</span></label></td>";
         echo "<td>";
         echo "<textarea name='observacoes' id='observacoes' class='form-control' style='width:100%; height:100px;'>" . $this->fields['observacoes'] . "</textarea>";
         echo "</td>";
         echo "</tr>";
 
         echo "<script>
-        function checkStatusOptante(val) {
+        window.checkStatusOptante = function(val) {
+           var rowStart = document.getElementById('row_date_start');
+           var rowEnd = document.getElementById('row_date_end');
+           var obsField = document.getElementById('observacoes');
+           var asterisk = document.getElementById('asterisk_obs');
+
            if (val == 4) {
-              document.getElementById('row_observacoes').style.display = 'table-row';
-              document.getElementById('observacoes').setAttribute('required', 'required');
+              if (rowStart) rowStart.style.display = 'none';
+              if (rowEnd) rowEnd.style.display = 'none';
+              if (obsField) obsField.setAttribute('required', 'required');
+              if (asterisk) asterisk.style.display = 'inline';
            } else {
-              document.getElementById('row_observacoes').style.display = 'none';
-              document.getElementById('observacoes').removeAttribute('required');
+              if (rowStart) rowStart.style.display = '';
+              if (rowEnd) rowEnd.style.display = '';
+              if (obsField) obsField.removeAttribute('required');
+              if (asterisk) asterisk.style.display = 'none';
            }
-        }
-        // Run on load
+        };
         checkStatusOptante(" . (int)$this->fields['status'] . ");
         </script>";
 
@@ -102,7 +112,9 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "<input type='hidden' name='id' value='".$this->fields['id']."'>";
         echo "<input type='hidden' name='plugin_taskmaster_implementations_id' value='".$this->fields['plugin_taskmaster_implementations_id']."'>";
         echo "<input type='hidden' name='plugin_taskmaster_tasks_id' value='".$this->fields['plugin_taskmaster_tasks_id']."'>";
-        echo "<input type='submit' name='update' value='" . _sx('button', 'Save') . "' class='submit'>";
+        echo "<input type='submit' name='update' value='" . _sx('button', 'Save') . "' class='btn btn-primary submit'>";
+        echo "</td>";
+        echo "</tr>";
         echo "</table>";
         echo "</div>";
         Html::closeForm();

@@ -15,6 +15,7 @@ function plugin_taskmaster_install() {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_modules` (
             `id` INT(11) NOT NULL AUTO_INCREMENT,
             `name` VARCHAR(255) DEFAULT NULL,
+            `training_hours` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`)

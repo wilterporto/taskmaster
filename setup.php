@@ -69,6 +69,12 @@ function plugin_init_taskmaster() {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_subtasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1 ");
         }
     }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_modules')) {
+        if (!$DB->fieldExists('glpi_plugin_taskmaster_modules', 'training_hours')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_modules` ADD `training_hours` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `name` ");
+        }
+    }
 }
 
 /**

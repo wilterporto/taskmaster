@@ -72,6 +72,13 @@ class PluginTaskmasterModule extends CommonDBTM {
         echo "</td>";
         echo "</tr>";
 
+        echo "<tr class='tab_bg_1'>";
+        echo "<td><label for='training_hours'>Tempo Estimado para Treinamento (horas) <span style='color:red;'>*</span></label></td>";
+        echo "<td>";
+        echo "<input type='number' name='training_hours' id='training_hours' value='".Html::cleanInputText($this->fields['training_hours'])."' required step='0.01' min='0' class='form-control' style='width:100%; max-width: 150px;'>";
+        echo "</td>";
+        echo "</tr>";
+
         echo "<tr class='tab_bg_2'>";
         echo "<td colspan='2' class='center'>";
         if ($id > 0) {

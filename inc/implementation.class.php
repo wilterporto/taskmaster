@@ -372,6 +372,28 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         return $statuses[$status] ?? 'Desconhecido';
     }
 
+    public static function getRealizationTime($date_start, $date_end, $entities_id) {
+        if (empty($date_start) || empty($date_end)) {
+            return 0;
+        }
+        
+        $calendars_id = Entity::getUsedConfig('calendars_strategy', $entities_id, 'calendars_id', 0);
+        
+        if ($calendars_id > 0) {
+            return Calendar::getTimeBetween($date_start, $date_end, $calendars_id);
+        } else {
+            $start = strtotime($date_start);
+            $end = strtotime($date_end);
+            return max(0, $end - $start);
+        }
+    }
+    
+    public static function formatTime($seconds) {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        return $hours . "h " . str_pad($minutes, 2, '0', STR_PAD_LEFT) . "m";
+    }
+
     public static function showTracking(PluginTaskmasterImplementation $item) {
         global $DB, $CFG_GLPI;
         $id = $item->fields['id'];
@@ -570,7 +592,20 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             echo "        <div style='width:{$modProgress}%; background:{$barColor}; height:100%; border-radius:6px; transition:width .4s;'></div>";
             echo "        <span style='position:absolute; top:0; left:0; width:100%; text-align:center; line-height:22px; font-size:12px; font-weight:bold; color:{$textColor};'>{$modProgress}%</span>";
             echo "      </div>";
-            echo "      <span style='font-size:12px; color:#555; white-space:nowrap;'>{$modDone} / {$modTotal} " . ($modTotal == 1 ? "item" : "itens") . " concluído" . ($modDone == 1 ? "" : "s") . "</span>";
+            echo "      <span style='font-size:12px; color:#555; white-space:nowrap;'>{$modDone} / {$modTotal} itens</span>";
+            echo "    </div>";
+            echo "    <div style='margin-top:5px; font-size:11px; color:#666; display:flex; gap:20px;'>";
+            echo "      <span><strong>Treinamento Estimado:</strong> " . $mod->fields['training_hours'] . "h</span>";
+
+            // Cálculo do tempo total de realização do módulo
+            $modRealizationSeconds = 0;
+            foreach ($moduleTasks as $task) {
+                $modRealizationSeconds += self::getRealizationTime($task['date_start'], $task['date_end'], $item->fields['entities_id']);
+                foreach ($task['subtasks'] as $ms) {
+                    $modRealizationSeconds += self::getRealizationTime($ms['date_start'], $ms['date_end'], $item->fields['entities_id']);
+                }
+            }
+            echo "      <span><strong>Tempo Total Realizado (Cálculo Calendário):</strong> " . self::formatTime($modRealizationSeconds) . "</span>";
             echo "    </div>";
             echo "  </td>";
             echo "</tr>";
@@ -578,7 +613,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             // Cabeçalho das colunas do módulo
             echo "<tr style='background-color:#dde8f8;'>";
             echo "  <th style='padding-left:12px;'>Tarefa / Subtarefa</th>";
-            echo "  <th>Status</th>";
+            echo "  <th>Status / Realização</th>";
             echo "  <th>Analista</th>";
             echo "  <th>Ações</th>";
             echo "</tr>";
@@ -596,9 +631,12 @@ class PluginTaskmasterImplementation extends CommonDBTM {
                         $analystName = $user->getName();
                     }
 
+                    $taskRealization = self::getRealizationTime($task['date_start'], $task['date_end'], $item->fields['entities_id']);
+                    $taskDisplayTime = ($taskRealization > 0) ? " <br><small>(" . self::formatTime($taskRealization) . ")</small>" : "";
+
                     echo "<tr style='background-color:#f0f4fc; font-weight:bold;'>";
                     echo "  <td style='padding-left:16px;'>" . Html::cleanInputText($task['_task_name']) . "</td>";
-                    echo "  <td>" . self::getStatusName($task['status']) . "</td>";
+                    echo "  <td>" . self::getStatusName($task['status']) . $taskDisplayTime . "</td>";
                     echo "  <td>" . Html::cleanInputText($analystName) . "</td>";
                     echo "  <td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationtask.form.php?id=".$task['id']."'>Editar</a></td>";
                     echo "</tr>";
@@ -614,9 +652,12 @@ class PluginTaskmasterImplementation extends CommonDBTM {
                             $analystSubName = $userSub->getName();
                         }
 
+                        $subRealization = self::getRealizationTime($sub['date_start'], $sub['date_end'], $item->fields['entities_id']);
+                        $subDisplayTime = ($subRealization > 0) ? " <br><small>(" . self::formatTime($subRealization) . ")</small>" : "";
+
                         echo "<tr class='tab_bg_1'>";
                         echo "  <td style='padding-left:40px;'>↳ " . Html::cleanInputText($subObj->fields['name']) . "</td>";
-                        echo "  <td>" . self::getStatusName($sub['status']) . "</td>";
+                        echo "  <td>" . self::getStatusName($sub['status']) . $subDisplayTime . "</td>";
                         echo "  <td>" . Html::cleanInputText($analystSubName) . "</td>";
                         echo "  <td><a href='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementationsubtask.form.php?id=".$sub['id']."'>Editar</a></td>";
                         echo "</tr>";
