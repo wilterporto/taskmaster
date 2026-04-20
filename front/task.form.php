@@ -2,7 +2,7 @@
 
 include ("../../../inc/includes.php");
 
-Session::checkRight("plugin_taskmaster_manage", READ);
+Session::checkRight("plugin_taskmaster_module", READ);
 
 $task = new PluginTaskmasterTask();
 

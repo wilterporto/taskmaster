@@ -2,7 +2,7 @@
 
 include("../../../inc/includes.php");
 
-Session::checkRight("plugin_taskmaster_impl", READ);
+Session::checkRight("plugin_taskmaster_implementation", READ);
 
 $impl_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($impl_id <= 0) {

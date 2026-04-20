@@ -2,7 +2,7 @@
 
 include ("../../../inc/includes.php");
 
-Session::checkRight("plugin_taskmaster_manage", READ);
+Session::checkRight("plugin_taskmaster_module", READ);
 
 Html::header(PluginTaskmasterTask::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "tools", "PluginTaskmasterModule");
 
