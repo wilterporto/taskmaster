@@ -113,7 +113,13 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "<tr class='tab_bg_1'>";
         echo "<td><label for='users_id_responsible'>Analista Responsável <span style='color:red;'>*</span></label></td>";
         echo "<td>";
-        User::dropdown(['name' => 'users_id_responsible', 'value' => $this->fields['users_id_responsible'], 'entity' => $this->fields['entities_id'], 'required' => true]);
+        User::dropdown([
+            'name'      => 'users_id_responsible', 
+            'value'     => $this->fields['users_id_responsible'], 
+            'required'  => true,
+            'right'     => 'plugin_taskmaster_implementation',
+            'entity'    => -1
+        ]);
         echo "</td>";
         echo "</tr>";
 
@@ -277,24 +283,63 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         $start = isset($_GET['start']) ? (int)$_GET['start'] : 0;
         $t_impl = self::getTable();
 
-        $total_req = $DB->request(['COUNT' => 'c', 'FROM' => $t_impl]);
+        // Filtros
+        $entities_id = isset($_GET['entities_id']) ? (int)$_GET['entities_id'] : -1;
+        $users_id_responsible = isset($_GET['users_id_responsible']) ? (int)$_GET['users_id_responsible'] : 0;
+
+        echo "<div class='center' style='margin-bottom: 20px;'>";
+        echo "<form method='get' action='".$_SERVER['PHP_SELF']."'>";
+        echo "<table class='tab_cadre_fixe' style='width: auto;'>";
+        echo "<tr>";
+        echo "<th colspan='6'>Filtros</th>";
+        echo "</tr>";
+        echo "<tr>";
+        echo "<td>Entidade:</td><td>";
+        Entity::dropdown([
+            'name'                => 'entities_id', 
+            'value'               => $entities_id, 
+            'display_emptychoice' => true,
+            'condition'           => ['entities_id' => 0]
+        ]);
+        echo "</td>";
+        echo "<td>Analista:</td><td>";
+        User::dropdown(['name' => 'users_id_responsible', 'value' => $users_id_responsible, 'display_emptychoice' => true, 'right' => 'plugin_taskmaster_implementation', 'entity' => -1]);
+        echo "</td>";
+        echo "<td><input type='submit' value='Filtrar' class='btn btn-primary'></td>";
+        echo "<td><a href='".$_SERVER['PHP_SELF']."' class='btn btn-secondary'>Limpar</a></td>";
+        echo "</tr>";
+        echo "</table>";
+        echo "</form>";
+        echo "</div>";
+
+        $where = [];
+        if ($entities_id >= 0) {
+            $where['entities_id'] = $entities_id;
+        }
+        if ($users_id_responsible > 0) {
+            $where['users_id_responsible'] = $users_id_responsible;
+        }
+
+        $total_req = $DB->request(['COUNT' => 'c', 'FROM' => $t_impl, 'WHERE' => $where]);
         $total = 0;
         if ($row = $total_req->current()) {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '');
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), false);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
         echo "<tr class='tab_bg_2'>";
-        echo "<th width='40%'>" . __('Nome da Implantação') . "</th>";
+        echo "<th width='30%'>" . __('Nome da Implantação') . "</th>";
         echo "<th class='center'>" . __('Entidade') . "</th>";
+        echo "<th class='center'>" . __('Analista Responsável') . "</th>";
         echo "<th width='250' class='center'>" . __('Progresso') . "</th>";
         echo "</tr>";
 
         $req = $DB->request([
             'FROM'  => $t_impl,
+            'WHERE' => $where,
             'START' => $start,
             'LIMIT' => $limit,
             'ORDER' => 'id DESC'
@@ -322,8 +367,6 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             echo "<td><a href='".self::getFormURLWithID($id)."'>".$impl['name']."</a></td>";
             
             $ent_full_name = Dropdown::getDropdownName('glpi_entities', $impl['entities_id']);
-            // O GLPI costuma tratar '<' e '>' convertendo para caracteres HTML (&gt;) ou afins na renderização/banco.
-            // Para garantir que o explode/regex funcione, forçamos o decode antes de separar.
             $decoded_name = html_entity_decode($ent_full_name, ENT_QUOTES, 'UTF-8');
             $ent_parts = preg_split('/\s*>\s*/', $decoded_name);
             
@@ -335,6 +378,9 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             }
             
             echo "<td class='center'>".Html::cleanInputText($ent_name)."</td>";
+
+            $analyst_name = Dropdown::getDropdownName('glpi_users', $impl['users_id_responsible']);
+            echo "<td class='center'>".Html::cleanInputText($analyst_name)."</td>";
             
             // Progress bar
             $color = '#d9534f';
@@ -352,11 +398,11 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         }
 
         if ($total == 0) {
-            echo "<tr><td colspan='3' class='center'>Nenhuma implantação cadastrada</td></tr>";
+            echo "<tr><td colspan='4' class='center'>Nenhuma implantação cadastrada</td></tr>";
         }
 
         echo "</table>";
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '');
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), true);
         echo "</div>";
     }
 

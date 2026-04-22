@@ -59,7 +59,9 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
             'name'                => 'users_id_analyst',
             'value'               => $this->fields['users_id_analyst'],
             'display_emptychoice' => true,
-            'required'            => true
+            'required'            => true,
+            'right'               => 'plugin_taskmaster_implementation',
+            'entity'              => -1,
         ]);
         echo "</td>";
         echo "</tr>";
@@ -81,7 +83,14 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         echo "<tr class='tab_bg_1' id='row_observacoes'>";
         echo "<td><label for='observacoes'>Observações <span id='asterisk_obs' style='color:red; display:none;'>*</span></label></td>";
         echo "<td>";
-        echo "<textarea name='observacoes' id='observacoes' class='form-control' style='width:100%; height:100px;'>" . $this->fields['observacoes'] . "</textarea>";
+        Html::textarea([
+            'name'             => 'observacoes',
+            'value'            => htmlspecialchars_decode($this->fields['observacoes']),
+            'enable_rich_text' => true,
+            'id'               => 'observacoes',
+            'width'            => '100%',
+            'rows'             => 10
+        ]);
         echo "</td>";
         echo "</tr>";
 
@@ -89,18 +98,15 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         window.checkStatusOptante = function(val) {
            var rowStart = document.getElementById('row_date_start');
            var rowEnd = document.getElementById('row_date_end');
-           var obsField = document.getElementById('observacoes');
            var asterisk = document.getElementById('asterisk_obs');
 
            if (val == 4) {
               if (rowStart) rowStart.style.display = 'none';
               if (rowEnd) rowEnd.style.display = 'none';
-              if (obsField) obsField.setAttribute('required', 'required');
               if (asterisk) asterisk.style.display = 'inline';
            } else {
               if (rowStart) rowStart.style.display = '';
               if (rowEnd) rowEnd.style.display = '';
-              if (obsField) obsField.removeAttribute('required');
               if (asterisk) asterisk.style.display = 'none';
            }
         };

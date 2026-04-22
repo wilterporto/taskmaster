@@ -122,7 +122,7 @@ class PluginTaskmasterModule extends CommonDBTM {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '');
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', false);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
@@ -203,7 +203,7 @@ class PluginTaskmasterModule extends CommonDBTM {
         }
 
         echo "</table>";
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '');
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', true);
         echo "</div>";
 
         echo "<script>
