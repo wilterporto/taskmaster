@@ -463,9 +463,8 @@ class PluginTaskmasterImplementation extends CommonDBTM {
     }
     
     public static function formatTime($seconds) {
-        $hours = floor($seconds / 3600);
-        $minutes = floor(($seconds % 3600) / 60);
-        return $hours . "h " . str_pad($minutes, 2, '0', STR_PAD_LEFT) . "m";
+        $hours = $seconds / 3600;
+        return number_format($hours, 2, '.', '') . "h";
     }
 
     public static function getAnalystName($users_id) {

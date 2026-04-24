@@ -88,14 +88,14 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "<tr class='tab_bg_1' id='row_date_start'>";
         echo "<td><label for='date_start'>Data Início</label></td>";
         echo "<td>";
-        Html::showDateField('date_start', ['value' => $this->fields['date_start']]);
+        Html::showDateTimeField('date_start', ['value' => $this->fields['date_start']]);
         echo "</td>";
         echo "</tr>";
 
         echo "<tr class='tab_bg_1' id='row_date_end'>";
         echo "<td><label for='date_end'>Data Fim</label></td>";
         echo "<td>";
-        Html::showDateField('date_end', ['value' => $this->fields['date_end']]);
+        Html::showDateTimeField('date_end', ['value' => $this->fields['date_end']]);
         echo "</td>";
         echo "</tr>";
 
@@ -326,5 +326,26 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
             }
         }
         return $input;
+    }
+
+    public function post_updateItem($history = 1) {
+        global $DB;
+        // Se a tarefa foi definida como "Não optante" (4), atualiza todas as subtarefas subordinadas
+        if (isset($this->fields['status']) && $this->fields['status'] == 4) {
+            $req = $DB->request('glpi_plugin_taskmaster_implementationsubtasks', [
+                'plugin_taskmaster_implementationtasks_id' => $this->fields['id']
+            ]);
+            
+            $subtask = new PluginTaskmasterImplementationSubtask();
+            foreach ($req as $row) {
+                if ($row['status'] != 4 || $row['users_id_analyst'] != $this->fields['users_id_analyst']) {
+                    $subtask->update([
+                        'id'               => $row['id'],
+                        'status'           => 4,
+                        'users_id_analyst' => $this->fields['users_id_analyst']
+                    ]);
+                }
+            }
+        }
     }
 }

@@ -28,6 +28,18 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         global $CFG_GLPI;
         $this->initForm($id, $options);
         $options['force_upload'] = true;
+
+        $parentTask = new PluginTaskmasterImplementationTask();
+        if ($parentTask->getFromDB($this->fields['plugin_taskmaster_implementationtasks_id'])) {
+            if ($parentTask->fields['status'] == 4) {
+                echo "<div class='center'><table class='tab_cadre_fixe'>";
+                echo "<tr><th class='center'>Ação não permitida</th></tr>";
+                echo "<tr class='tab_bg_1'><td class='center'>Esta subtarefa não pode ser editada pois a tarefa principal foi definida como 'Não optante'. Altere o status da tarefa principal para habilitar a edição.</td></tr>";
+                echo "</table></div>";
+                return false;
+            }
+        }
+
         $this->showFormHeader($options);
         
         // Script agressivo para garantir o enctype caso o showFormHeader falhe
@@ -88,14 +100,14 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         echo "<tr class='tab_bg_1' id='row_date_start'>";
         echo "<td><label for='date_start'>Data Início</label></td>";
         echo "<td>";
-        Html::showDateField('date_start', ['value' => $this->fields['date_start']]);
+        Html::showDateTimeField('date_start', ['value' => $this->fields['date_start']]);
         echo "</td>";
         echo "</tr>";
 
         echo "<tr class='tab_bg_1' id='row_date_end'>";
         echo "<td><label for='date_end'>Data Fim</label></td>";
         echo "<td>";
-        Html::showDateField('date_end', ['value' => $this->fields['date_end']]);
+        Html::showDateTimeField('date_end', ['value' => $this->fields['date_end']]);
         echo "</td>";
         echo "</tr>";
 
@@ -250,6 +262,13 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         $status = isset($input['status']) ? $input['status'] : ($this->fields['status'] ?? 0);
 
         if ($status == 4) {
+            $parentTask = new PluginTaskmasterImplementationTask();
+            $task_id = isset($input['plugin_taskmaster_implementationtasks_id']) ? $input['plugin_taskmaster_implementationtasks_id'] : ($this->fields['plugin_taskmaster_implementationtasks_id'] ?? 0);
+            if ($parentTask->getFromDB($task_id) && $parentTask->fields['status'] == 4) {
+                // Ignora obrigatoriedade se a tarefa principal for "Não optante"
+                return $input;
+            }
+
             $obs = isset($input['observacoes']) ? $input['observacoes'] : ($this->fields['observacoes'] ?? '');
             if (empty($obs)) {
                 Session::addMessageAfterRedirect("Observações são obrigatórias para o status 'Não optante'.", false, ERROR);
