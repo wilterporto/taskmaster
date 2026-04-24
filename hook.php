@@ -87,7 +87,9 @@ function plugin_taskmaster_install() {
             `users_id_analyst` INT(11) DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
-            `observacoes` TEXT DEFAULT NULL,
+            `observacoes` LONGTEXT DEFAULT NULL,
+            `evidence_type` INT(11) DEFAULT 0,
+            `evidence_data` TEXT DEFAULT NULL,
             PRIMARY KEY (`id`),
             KEY `implementation` (`plugin_taskmaster_implementations_id`),
             KEY `analyst` (`users_id_analyst`)
@@ -104,7 +106,9 @@ function plugin_taskmaster_install() {
             `users_id_analyst` INT(11) DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
-            `observacoes` TEXT DEFAULT NULL,
+            `observacoes` LONGTEXT DEFAULT NULL,
+            `evidence_type` INT(11) DEFAULT 0,
+            `evidence_data` TEXT DEFAULT NULL,
             PRIMARY KEY (`id`),
             KEY `implemtask` (`plugin_taskmaster_implementationtasks_id`),
             KEY `analyst` (`users_id_analyst`)
@@ -155,5 +159,39 @@ function plugin_taskmaster_uninstall() {
  * @return boolean
  */
 function plugin_taskmaster_upgrade() {
+    global $DB;
+    $migration = new Migration(TASKMASTER_VERSION);
+
+    // Converte colunas para LONGTEXT se existirem
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
+        $migration->displayMessage("Alterando observacoes para LONGTEXT em glpi_plugin_taskmaster_implementationtasks");
+        $migration->addPostQuery("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` MODIFY `observacoes` LONGTEXT DEFAULT NULL");
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
+        $migration->displayMessage("Alterando observacoes para LONGTEXT em glpi_plugin_taskmaster_implementationsubtasks");
+        $migration->addPostQuery("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` MODIFY `observacoes` LONGTEXT DEFAULT NULL");
+    }
+
+    // Adiciona campos de evidência
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationtasks', 'evidence_type')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `evidence_type` INT(11) DEFAULT 0");
+        }
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationtasks', 'evidence_data')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `evidence_data` TEXT DEFAULT NULL");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationsubtasks', 'evidence_type')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `evidence_type` INT(11) DEFAULT 0");
+        }
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationsubtasks', 'evidence_data')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `evidence_data` TEXT DEFAULT NULL");
+        }
+    }
+
+    $migration->executeMigration();
     return true;
 }

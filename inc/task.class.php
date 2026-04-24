@@ -137,6 +137,36 @@ class PluginTaskmasterTask extends CommonDBTM {
         return true;
     }
 
+    public function prepareInputForAdd($input) {
+        if (isset($input['name']) && isset($input['plugin_taskmaster_modules_id'])) {
+            $existing = $this->find([
+                'name' => $input['name'],
+                'plugin_taskmaster_modules_id' => $input['plugin_taskmaster_modules_id']
+            ]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe uma tarefa com o nome '" . $input['name'] . "' neste módulo.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
+    }
+
+    public function prepareInputForUpdate($input) {
+        if (isset($input['name'])) {
+            $mid = $input['plugin_taskmaster_modules_id'] ?? $this->fields['plugin_taskmaster_modules_id'];
+            $existing = $this->find([
+                'name' => $input['name'],
+                'plugin_taskmaster_modules_id' => $mid,
+                'NOT'  => ['id' => $input['id']]
+            ]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe uma outra tarefa com o nome '" . $input['name'] . "' neste módulo.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
+    }
+
     static function showForModule(PluginTaskmasterModule $module) {
         global $DB;
         $id = $module->fields['id'];

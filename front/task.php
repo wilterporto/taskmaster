@@ -16,6 +16,6 @@ if (PluginTaskmasterTask::canCreate()) {
     echo "</div>";
 }
 
-Search::show('PluginTaskmasterTask');
+Search::show('PluginTaskmasterTask', ['display_export' => false]);
 
 Html::footer();

@@ -122,7 +122,7 @@ class PluginTaskmasterModule extends CommonDBTM {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', false);
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', 0);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
@@ -203,7 +203,6 @@ class PluginTaskmasterModule extends CommonDBTM {
         }
 
         echo "</table>";
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', true);
         echo "</div>";
 
         echo "<script>
@@ -228,6 +227,31 @@ class PluginTaskmasterModule extends CommonDBTM {
             });
         });
         </script>";
+    }
+
+    public function prepareInputForAdd($input) {
+        if (isset($input['name'])) {
+            $existing = $this->find(['name' => $input['name']]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe um módulo com o nome '" . $input['name'] . "'.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
+    }
+
+    public function prepareInputForUpdate($input) {
+        if (isset($input['name'])) {
+            $existing = $this->find([
+                'name' => $input['name'],
+                'NOT'  => ['id' => $input['id']]
+            ]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe um outro módulo com o nome '" . $input['name'] . "'.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
     }
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0) {

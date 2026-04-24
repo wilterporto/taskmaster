@@ -137,6 +137,36 @@ class PluginTaskmasterSubtask extends CommonDBTM {
         return true;
     }
 
+    public function prepareInputForAdd($input) {
+        if (isset($input['name']) && isset($input['plugin_taskmaster_tasks_id'])) {
+            $existing = $this->find([
+                'name' => $input['name'],
+                'plugin_taskmaster_tasks_id' => $input['plugin_taskmaster_tasks_id']
+            ]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe uma subtarefa com o nome '" . $input['name'] . "' nesta tarefa.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
+    }
+
+    public function prepareInputForUpdate($input) {
+        if (isset($input['name'])) {
+            $tid = $input['plugin_taskmaster_tasks_id'] ?? $this->fields['plugin_taskmaster_tasks_id'];
+            $existing = $this->find([
+                'name' => $input['name'],
+                'plugin_taskmaster_tasks_id' => $tid,
+                'NOT'  => ['id' => $input['id']]
+            ]);
+            if (count($existing) > 0) {
+                Session::addMessageAfterRedirect("Já existe uma outra subtarefa com o nome '" . $input['name'] . "' nesta tarefa.", true, ERROR);
+                return false;
+            }
+        }
+        return $input;
+    }
+
     static function showForTask(PluginTaskmasterTask $task) {
         global $DB;
         $id = $task->fields['id'];

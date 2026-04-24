@@ -214,33 +214,62 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             'plugin_taskmaster_modules_id' => $module_id
         ]);
 
-        // Carrega tarefas do módulo e insere (apenas ativas)
+        return $this->syncModule($impl_id, $module_id);
+    }
+
+    /**
+     * Sincroniza tarefas e subtarefas de um módulo para uma implantação específica
+     * Adiciona apenas o que ainda não existe.
+     */
+    public function syncModule($impl_id, $module_id) {
+        global $DB;
+
+        // Carrega tarefas do módulo (apenas ativas)
         $reqTasks = $DB->request('glpi_plugin_taskmaster_tasks', [
             'plugin_taskmaster_modules_id' => $module_id,
             'is_active'                    => 1
         ]);
-        foreach ($reqTasks as $task) {
-            $DB->insert('glpi_plugin_taskmaster_implementationtasks', [
-                'plugin_taskmaster_implementations_id' => $impl_id,
-                'plugin_taskmaster_tasks_id' => $task['id'],
-                'status' => 0 // Não iniciado
-            ]);
-            $implTaskId = $DB->insertId();
 
-            // Carrega subtarefas e insere (apenas ativas)
+        foreach ($reqTasks as $task) {
+            // Verifica se a tarefa já existe na implantação
+            $reqExistTask = $DB->request('glpi_plugin_taskmaster_implementationtasks', [
+                'plugin_taskmaster_implementations_id' => $impl_id,
+                'plugin_taskmaster_tasks_id'           => $task['id']
+            ]);
+
+            if (count($reqExistTask) == 0) {
+                // Insere nova tarefa se não existir
+                $DB->insert('glpi_plugin_taskmaster_implementationtasks', [
+                    'plugin_taskmaster_implementations_id' => $impl_id,
+                    'plugin_taskmaster_tasks_id' => $task['id'],
+                    'status' => 0 // Não iniciado
+                ]);
+                $implTaskId = $DB->insertId();
+            } else {
+                $row = $reqExistTask->current();
+                $implTaskId = $row['id'];
+            }
+
+            // Carrega subtarefas e insere (apenas ativas) se não existirem
             $reqSub = $DB->request('glpi_plugin_taskmaster_subtasks', [
                 'plugin_taskmaster_tasks_id' => $task['id'],
                 'is_active'                  => 1
             ]);
             foreach ($reqSub as $subtask) {
-                $DB->insert('glpi_plugin_taskmaster_implementationsubtasks', [
+                $reqExistSub = $DB->request('glpi_plugin_taskmaster_implementationsubtasks', [
                     'plugin_taskmaster_implementationtasks_id' => $implTaskId,
-                    'plugin_taskmaster_subtasks_id' => $subtask['id'],
-                    'status' => 0 // Não iniciado
+                    'plugin_taskmaster_subtasks_id'            => $subtask['id']
                 ]);
+
+                if (count($reqExistSub) == 0) {
+                    $DB->insert('glpi_plugin_taskmaster_implementationsubtasks', [
+                        'plugin_taskmaster_implementationtasks_id' => $implTaskId,
+                        'plugin_taskmaster_subtasks_id' => $subtask['id'],
+                        'status' => 0 // Não iniciado
+                    ]);
+                }
             }
         }
-        
         return true;
     }
 
@@ -326,7 +355,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), false);
+        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), 0);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
@@ -379,7 +408,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             
             echo "<td class='center'>".Html::cleanInputText($ent_name)."</td>";
 
-            $analyst_name = Dropdown::getDropdownName('glpi_users', $impl['users_id_responsible']);
+            $analyst_name = self::getAnalystName($impl['users_id_responsible']);
             echo "<td class='center'>".Html::cleanInputText($analyst_name)."</td>";
             
             // Progress bar
@@ -402,7 +431,6 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         }
 
         echo "</table>";
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), true);
         echo "</div>";
     }
 
@@ -438,6 +466,18 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         $hours = floor($seconds / 3600);
         $minutes = floor(($seconds % 3600) / 60);
         return $hours . "h " . str_pad($minutes, 2, '0', STR_PAD_LEFT) . "m";
+    }
+
+    public static function getAnalystName($users_id) {
+        if ($users_id <= 0) return '';
+        $user = new User();
+        if ($user->getFromDB($users_id)) {
+            $firstname = $user->fields['firstname'] ?? '';
+            $realname = $user->fields['realname'] ?? '';
+            $full = trim($firstname . ' ' . $realname);
+            return !empty($full) ? $full : $user->fields['name'];
+        }
+        return '';
     }
 
     public static function showTracking(PluginTaskmasterImplementation $item) {
@@ -487,12 +527,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "<table class='tab_cadre_fixe'>";
         echo "<tr><th colspan='4'>Resumo da Implantação (" . $progress . "% Concluído)</th></tr>";
         
-        $responsibleName = '';
-        if ($item->fields['users_id_responsible'] > 0) {
-            $user = new User();
-            $user->getFromDB($item->fields['users_id_responsible']);
-            $responsibleName = $user->getName();
-        }
+        $responsibleName = self::getAnalystName($item->fields['users_id_responsible']);
         $formattedDate = '';
         if (!empty($item->fields['date_begin'])) {
             $formattedDate = Html::convDateTime($item->fields['date_begin']);
@@ -541,13 +576,18 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             echo "<input type='hidden' name='_glpi_csrf_token' value='".Session::getNewCSRFToken()."'>";
             echo "<table class='tab_cadre_fixehov' style='margin-bottom: 20px;'>";
             echo "<tr><th colspan='2'>Módulos Vinculados na Implantação</th></tr>";
-            echo "<tr><th width='40' class='center'>#</th><th>Nome do Módulo</th></tr>";
+            echo "<tr><th width='40' class='center'>#</th><th>Nome do Módulo</th><th width='150' class='center'>Ações</th></tr>";
             foreach ($addedModuleIds as $mId) {
                 $mod = new PluginTaskmasterModule();
                 if ($mod->getFromDB($mId)) {
                     echo "<tr class='tab_bg_1'>";
                     echo "<td class='center'><input type='checkbox' name='delete_modules[]' value='$mId'></td>";
                     echo "<td>".$mod->fields['name']."</td>";
+                    echo "<td class='center'>";
+                    echo "<button type='submit' name='sync_module_id' value='$mId' class='btn btn-sm btn-info' style='background-color:#17a2b8; color:white; border:none; padding: 4px 12px; border-radius:4px; font-size:12px;' title='Sincronizar novas tarefas/subtarefas deste módulo'>";
+                    echo "<i class='fas fa-sync-alt'></i> Sincronizar";
+                    echo "</button>";
+                    echo "</td>";
                     echo "</tr>";
                 }
             }
@@ -651,7 +691,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
                     $modRealizationSeconds += self::getRealizationTime($ms['date_start'], $ms['date_end'], $item->fields['entities_id']);
                 }
             }
-            echo "      <span><strong>Tempo Total Realizado (Cálculo Calendário):</strong> " . self::formatTime($modRealizationSeconds) . "</span>";
+            echo "      <span><strong>Tempo Total Realizado:</strong> " . self::formatTime($modRealizationSeconds) . "</span>";
             echo "    </div>";
             echo "  </td>";
             echo "</tr>";
@@ -670,12 +710,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
                 echo "</tr>";
             } else {
                 foreach ($moduleTasks as $task) {
-                    $analystName = '';
-                    if ($task['users_id_analyst'] > 0) {
-                        $user = new User();
-                        $user->getFromDB($task['users_id_analyst']);
-                        $analystName = $user->getName();
-                    }
+                    $analystName = self::getAnalystName($task['users_id_analyst']);
 
                     $taskRealization = self::getRealizationTime($task['date_start'], $task['date_end'], $item->fields['entities_id']);
                     $taskDisplayTime = ($taskRealization > 0) ? " <br><small>(" . self::formatTime($taskRealization) . ")</small>" : "";
@@ -691,12 +726,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
                         $subObj = new PluginTaskmasterSubtask();
                         $subObj->getFromDB($sub['plugin_taskmaster_subtasks_id']);
 
-                        $analystSubName = '';
-                        if ($sub['users_id_analyst'] > 0) {
-                            $userSub = new User();
-                            $userSub->getFromDB($sub['users_id_analyst']);
-                            $analystSubName = $userSub->getName();
-                        }
+                        $analystSubName = self::getAnalystName($sub['users_id_analyst']);
 
                         $subRealization = self::getRealizationTime($sub['date_start'], $sub['date_end'], $item->fields['entities_id']);
                         $subDisplayTime = ($subRealization > 0) ? " <br><small>(" . self::formatTime($subRealization) . ")</small>" : "";

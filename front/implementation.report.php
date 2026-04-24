@@ -395,7 +395,7 @@ function progressBarColor(float $pct): string {
 
 <!-- Barra de ações -->
 <div class="action-bar">
-    <a class="btn btn-back" href="javascript:history.back()">&#8592; Voltar</a>
+
     <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
 </div>
 

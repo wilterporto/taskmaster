@@ -16,11 +16,16 @@ if (isset($_POST["add"])) {
 } else if (isset($_POST["update"])) {
     $impl->check($_POST["id"], UPDATE);
     $impl->update($_POST);
-    Html::back();
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
 } else if (isset($_POST["add_module"])) {
     $impl->check($_POST["id"], UPDATE);
     $impl->addModule($_POST["id"], $_POST["add_module_id"]);
-    Html::back();
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
+} else if (isset($_POST["sync_module_id"])) {
+    $impl->check($_POST["id"], UPDATE);
+    $impl->syncModule($_POST["id"], $_POST["sync_module_id"]);
+    Session::addMessageAfterRedirect("Módulo sincronizado com sucesso! Novas tarefas e subtarefas foram adicionadas.", false, INFO);
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
 } else if (isset($_POST["remove_modules"])) {
     $impl->check($_POST["id"], UPDATE);
     if (!empty($_POST["delete_modules"])) {
@@ -28,7 +33,7 @@ if (isset($_POST["add"])) {
             $impl->removeModule($_POST["id"], $mId);
         }
     }
-    Html::back();
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
 } else if (isset($_POST["delete"])) {
     $impl->check($_POST["id"], PURGE);
     $impl->delete($_POST, 1);
