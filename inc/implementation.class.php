@@ -343,13 +343,17 @@ class PluginTaskmasterImplementation extends CommonDBTM {
 
         $where = [];
         if ($entities_id >= 0) {
-            $where['entities_id'] = $entities_id;
+            $where['impl.entities_id'] = $entities_id;
         }
         if ($users_id_responsible > 0) {
-            $where['users_id_responsible'] = $users_id_responsible;
+            $where['impl.users_id_responsible'] = $users_id_responsible;
         }
 
-        $total_req = $DB->request(['COUNT' => 'c', 'FROM' => $t_impl, 'WHERE' => $where]);
+        $total_req = $DB->request([
+            'COUNT' => 'c',
+            'FROM'  => "$t_impl as impl",
+            'WHERE' => $where
+        ]);
         $total = 0;
         if ($row = $total_req->current()) {
             $total = $row['c'];
@@ -367,11 +371,20 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "</tr>";
 
         $req = $DB->request([
-            'FROM'  => $t_impl,
-            'WHERE' => $where,
-            'START' => $start,
-            'LIMIT' => $limit,
-            'ORDER' => 'id DESC'
+            'SELECT'     => ['impl.*'],
+            'FROM'       => "$t_impl as impl",
+            'INNER JOIN' => [
+                'glpi_entities as e' => [
+                    'ON' => [
+                        'impl' => 'entities_id',
+                        'e'    => 'id'
+                    ]
+                ]
+            ],
+            'WHERE'      => $where,
+            'START'      => $start,
+            'LIMIT'      => $limit,
+            'ORDER'      => 'e.completename ASC'
         ]);
 
         foreach ($req as $impl) {
