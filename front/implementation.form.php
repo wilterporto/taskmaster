@@ -17,6 +17,17 @@ if (isset($_POST["add"])) {
     $impl->check($_POST["id"], UPDATE);
     $impl->update($_POST);
     Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
+} else if (isset($_POST["complete_module_tasks"])) {
+    $impl->check($_POST["id"], UPDATE);
+    if (empty($_POST["complete_module_id"]) || $_POST["complete_module_id"] <= 0) {
+        Session::addMessageAfterRedirect("Selecione o módulo que deseja concluir.", false, ERROR);
+    } else if (empty($_POST["complete_all_analyst_id"]) || $_POST["complete_all_analyst_id"] <= 0) {
+        Session::addMessageAfterRedirect("Selecione o analista responsável.", false, ERROR);
+    } else {
+        $impl->completeModuleTasks($_POST["id"], $_POST["complete_module_id"], $_POST["complete_all_analyst_id"]);
+        Session::addMessageAfterRedirect("Todas as tarefas e subtarefas do módulo foram concluídas com sucesso!", false, INFO);
+    }
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
 } else if (isset($_POST["add_module"])) {
     $impl->check($_POST["id"], UPDATE);
     $impl->addModule($_POST["id"], $_POST["add_module_id"]);

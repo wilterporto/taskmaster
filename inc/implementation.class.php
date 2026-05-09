@@ -568,6 +568,17 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             }
         }
 
+        // Ordenar os IDs dos módulos pelo nome do módulo em ordem alfabética para exibição
+        $sortedModules = [];
+        foreach ($addedModuleIds as $mId) {
+            $mod = new PluginTaskmasterModule();
+            if ($mod->getFromDB($mId)) {
+                $sortedModules[$mId] = strtolower($mod->fields['name']);
+            }
+        }
+        asort($sortedModules);
+        $addedModuleIds = array_keys($sortedModules);
+
         // Formulário para remover módulos em lote
         if (count($addedModuleIds) > 0) {
             echo "<form method='post' action='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementation.form.php'>";
@@ -608,7 +619,10 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "<td class='center'>";
         echo "<select name='add_module_id' class='form-control' required>";
         echo "<option value=''>--- Selecione um módulo ---</option>";
-        $reqMods = $DB->request('glpi_plugin_taskmaster_modules');
+        $reqMods = $DB->request([
+            'FROM'  => 'glpi_plugin_taskmaster_modules',
+            'ORDER' => 'name ASC'
+        ]);
         $hasAvailable = false;
         foreach ($reqMods as $mod) {
             if (!in_array($mod['id'], $addedModuleIds)) {
@@ -620,6 +634,49 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "</td>";
         echo "<td class='center' width='200'>";
         echo "<input type='submit' name='add_module' value='Adicionar Módulo' class='submit btn btn-primary' ".(!$hasAvailable ? "disabled" : "").">";
+        echo "</td>";
+        echo "</tr>";
+        echo "</table>";
+        Html::closeForm();
+
+        // Formulário para concluir todas as tarefas de um módulo em lote (sendo obrigatório informar o analista)
+        echo "<form method='post' action='".$CFG_GLPI['root_doc']."/plugins/taskmaster/front/implementation.form.php' style='margin-bottom: 20px;'>";
+        echo "<input type='hidden' name='id' value='$id'>";
+        echo "<input type='hidden' name='_glpi_csrf_token' value='".Session::getNewCSRFToken()."'>";
+        echo "<table class='tab_cadre_fixe'>";
+        echo "<tr><th colspan='2'>Concluir Módulo em Lote</th></tr>";
+        
+        echo "<tr class='tab_bg_1'>";
+        echo "<td width='30%'><label for='complete_module_id'>Módulo <span style='color:red;'>*</span></label></td>";
+        echo "<td>";
+        echo "<select name='complete_module_id' class='form-control' required style='width:100%; max-width:400px;'>";
+        echo "<option value=''>--- Selecione um módulo ---</option>";
+        foreach ($addedModuleIds as $mId) {
+            $mod = new PluginTaskmasterModule();
+            if ($mod->getFromDB($mId)) {
+                echo "<option value='$mId'>".Html::cleanInputText($mod->fields['name'])."</option>";
+            }
+        }
+        echo "</select>";
+        echo "</td>";
+        echo "</tr>";
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td><label for='dropdown_complete_all_analyst_id'>Analista Responsável <span style='color:red;'>*</span></label></td>";
+        echo "<td>";
+        User::dropdown([
+            'name'                => 'complete_all_analyst_id',
+            'display_emptychoice' => true,
+            'required'            => true,
+            'right'               => 'plugin_taskmaster_implementation',
+            'entity'              => -1,
+        ]);
+        echo "</td>";
+        echo "</tr>";
+        
+        echo "<tr class='tab_bg_2'>";
+        echo "<td colspan='2' class='center'>";
+        echo "<input type='submit' name='complete_module_tasks' value='Concluir Módulo' class='btn btn-success submit' onclick='return confirm(\"Tem certeza que deseja marcar todas as tarefas e subtarefas do módulo selecionado como Concluídas e atribuí-las ao analista selecionado?\");' style='background-color:#5cb85c; color:white; padding: 6px 12px; border:none; border-radius:3px;'>";
         echo "</td>";
         echo "</tr>";
         echo "</table>";
@@ -749,6 +806,62 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         }
 
         echo "</table></div>";
+    }
+
+    public function completeModuleTasks($impl_id, $module_id, $analyst_id) {
+        global $DB;
+        $now = $_SESSION['glpi_currenttime'] ?? date('Y-m-d H:i:s');
+
+        // Buscar todas as tarefas da implantação que pertencem ao módulo selecionado
+        $tasksReq = $DB->request([
+            'SELECT' => [
+                'it.id AS id',
+                'it.date_start AS date_start'
+            ],
+            'FROM'   => 'glpi_plugin_taskmaster_implementationtasks as it',
+            'INNER JOIN' => [
+                'glpi_plugin_taskmaster_tasks as t' => [
+                    'ON' => [
+                        'it' => 'plugin_taskmaster_tasks_id',
+                        't'  => 'id'
+                    ]
+                ]
+            ],
+            'WHERE' => [
+                'it.plugin_taskmaster_implementations_id' => $impl_id,
+                't.plugin_taskmaster_modules_id'          => $module_id
+            ]
+        ]);
+
+        foreach ($tasksReq as $tRow) {
+            $task_id = $tRow['id'];
+            
+            // Buscar todas as subtarefas dessa tarefa para atualizar de forma precisa
+            $subtasksReq = $DB->request('glpi_plugin_taskmaster_implementationsubtasks', [
+                'plugin_taskmaster_implementationtasks_id' => $task_id
+            ]);
+            foreach ($subtasksReq as $sRow) {
+                $DB->update('glpi_plugin_taskmaster_implementationsubtasks', [
+                    'status'           => 3,
+                    'users_id_analyst' => $analyst_id,
+                    'date_start'       => empty($sRow['date_start']) || $sRow['date_start'] == 'NULL' ? $now : $sRow['date_start'],
+                    'date_end'         => empty($sRow['date_end']) || $sRow['date_end'] == 'NULL' ? $now : $sRow['date_end']
+                ], [
+                    'id' => $sRow['id']
+                ]);
+            }
+
+            // Atualizar a tarefa principal
+            $DB->update('glpi_plugin_taskmaster_implementationtasks', [
+                'status'           => 3,
+                'users_id_analyst' => $analyst_id,
+                'date_start'       => empty($tRow['date_start']) || $tRow['date_start'] == 'NULL' ? $now : $tRow['date_start'],
+                'date_end'         => empty($tRow['date_end']) || $tRow['date_end'] == 'NULL' ? $now : $tRow['date_end']
+            ], [
+                'id' => $task_id
+            ]);
+        }
+        return true;
     }
 
     public function getTabNameForItem(CommonGLPI $item, $withtemplate = 0) {
