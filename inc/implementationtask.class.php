@@ -24,8 +24,19 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         return PluginTaskmasterImplementation::getSearchURL($full);
     }
 
+    public function cleanDBonPurge() {
+        global $DB;
+
+        // Exclui as subtarefas vinculadas a esta tarefa
+        $DB->delete('glpi_plugin_taskmaster_implementationsubtasks', [
+            'plugin_taskmaster_implementationtasks_id' => $this->fields['id']
+        ]);
+
+        return true;
+    }
+
     function showForm($id, array $options = []) {
-        global $CFG_GLPI;
+        global $CFG_GLPI, $DB;
         $this->initForm($id, $options);
         $options['force_upload'] = true;
         $this->showFormHeader($options);
@@ -62,7 +73,8 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
             1 => 'Planejado',
             2 => 'Em andamento',
             3 => 'Concluído',
-            4 => 'Não optante'
+            4 => 'Não optante',
+            5 => 'Não se aplica'
         ];
         Dropdown::showFromArray('status', $statuses, [
             'value' => $this->fields['status'],
@@ -142,7 +154,24 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "</td>";
         echo "</tr>";
 
+        // Verifica se existem subtarefas para mostrar a opção de conclusão em lote
+        $reqSub = $DB->request('glpi_plugin_taskmaster_implementationsubtasks', [
+            'plugin_taskmaster_implementationtasks_id' => $this->fields['id']
+        ]);
+        $has_subtasks = (count($reqSub) > 0);
+
+        if ($has_subtasks) {
+            echo "<tr class='tab_bg_1' id='row_complete_subtasks' style='display:none;'>";
+            echo "<td><label for='_complete_subtasks'>Propagar status para subtarefas?</label></td>";
+            echo "<td>";
+            Html::showCheckbox(['name' => '_complete_subtasks', 'value' => 1, 'id' => '_complete_subtasks']);
+            echo " <span style='font-size:11px; color:#666;'>(Aplica o mesmo status e analista a todas as subtarefas desta tarefa)</span>";
+            echo "</td>";
+            echo "</tr>";
+        }
+
         echo "<script>
+
         window.checkStatusOptante = function(val) {
            var rowStart = document.getElementById('row_date_start');
            var rowEnd = document.getElementById('row_date_end');
@@ -150,8 +179,16 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
            var rowEvType = document.getElementById('row_evidence_type');
            var rowEvLink = document.getElementById('row_evidence_link');
            var rowEvFile = document.getElementById('row_evidence_file');
+           var rowSub = document.getElementById('row_complete_subtasks');
 
-           if (val == 4) { // Não optante
+           // Exibe o checkbox de propagação para status 3, 4 ou 5
+           if (val == 3 || val == 4 || val == 5) {
+               if (rowSub) rowSub.style.display = '';
+           } else {
+               if (rowSub) rowSub.style.display = 'none';
+           }
+
+           if (val == 4 || val == 5) { // Não optante ou Não se aplica
               if (rowStart) rowStart.style.display = 'none';
               if (rowEnd) rowEnd.style.display = 'none';
               if (asterisk) asterisk.style.display = 'inline';
@@ -167,6 +204,7 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
               if (asterisk) asterisk.style.display = 'none';
               if (rowEvType) rowEvType.style.display = 'none';
               if (rowEvLink) rowEvLink.style.display = 'none';
+              if (rowEvFile) rowEvFile.style.display = 'none';
               if (rowEvFile) rowEvFile.style.display = 'none';
            }
         };
@@ -249,17 +287,17 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
     private function processEvidenceInput($input) {
         $status = isset($input['status']) ? $input['status'] : ($this->fields['status'] ?? 0);
 
-        if ($status == 4) {
+        if ($status == 4 || $status == 5) {
             $obs = isset($input['observacoes']) ? $input['observacoes'] : ($this->fields['observacoes'] ?? '');
             if (empty($obs)) {
-                Session::addMessageAfterRedirect("Observações são obrigatórias para o status 'Não optante'.", false, ERROR);
+                Session::addMessageAfterRedirect("Observações são obrigatórias para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
             $evidence_type = isset($input['evidence_type']) ? $input['evidence_type'] : ($this->fields['evidence_type'] ?? 0);
             
             if (empty($evidence_type) || $evidence_type == 0) {
-                Session::addMessageAfterRedirect("Tipo de evidência é obrigatório para o status 'Não optante'.", false, ERROR);
+                Session::addMessageAfterRedirect("Tipo de evidência é obrigatório para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
@@ -330,18 +368,26 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
 
     public function post_updateItem($history = 1) {
         global $DB;
-        // Se a tarefa foi definida como "Não optante" (4), atualiza todas as subtarefas subordinadas
-        if (isset($this->fields['status']) && $this->fields['status'] == 4) {
+        
+        $propagate = false;
+        $target_status = $this->fields['status'];
+
+        if (($this->fields['status'] == 3 || $this->fields['status'] == 4 || $this->fields['status'] == 5) 
+            && isset($this->input['_complete_subtasks']) && $this->input['_complete_subtasks'] == 1) {
+            $propagate = true;
+        }
+
+        if ($propagate) {
             $req = $DB->request('glpi_plugin_taskmaster_implementationsubtasks', [
                 'plugin_taskmaster_implementationtasks_id' => $this->fields['id']
             ]);
             
             $subtask = new PluginTaskmasterImplementationSubtask();
             foreach ($req as $row) {
-                if ($row['status'] != 4 || $row['users_id_analyst'] != $this->fields['users_id_analyst']) {
+                if ($row['status'] != $target_status || $row['users_id_analyst'] != $this->fields['users_id_analyst']) {
                     $subtask->update([
                         'id'               => $row['id'],
-                        'status'           => 4,
+                        'status'           => $target_status,
                         'users_id_analyst' => $this->fields['users_id_analyst']
                     ]);
                 }

@@ -1,5 +1,5 @@
 <?php
-define('TASKMASTER_VERSION', '2.0.0');
+define('TASKMASTER_VERSION', '2.0.1');
 define('TASKMASTER_DIR', dirname(__FILE__));
 
 /**

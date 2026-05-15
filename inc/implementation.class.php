@@ -7,6 +7,7 @@ if (!defined('GLPI_ROOT')) {
 class PluginTaskmasterImplementation extends CommonDBTM {
     static $rightname = 'plugin_taskmaster_implementation';
     public $dohistory = true;
+    public $entities_id = 'entities_id';
 
     static function getTypeName($nb = 0) {
         return _n('Implantação', 'Implantações', $nb, 'taskmaster');
@@ -36,8 +37,57 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         return self::canCreate();
     }
 
+    public function isEntityAssign() {
+        return true;
+    }
+
     public function canUpdateItem() {
         return self::canUpdate();
+    }
+
+    public function pre_deleteItem() {
+        global $DB;
+        
+        // Verifica se existem tarefas vinculadas a esta implantação
+        $reqTasks = $DB->request('glpi_plugin_taskmaster_implementationtasks', [
+            'plugin_taskmaster_implementations_id' => $this->fields['id']
+        ]);
+        
+        if (count($reqTasks) > 0) {
+            Session::addMessageAfterRedirect("Não é possível excluir a implantação, pois existem tarefas vinculadas a ela. Remova os módulos primeiro.", false, ERROR);
+            return false;
+        }
+        
+        return true;
+    }
+
+    public function cleanDBonPurge() {
+        global $DB;
+
+        $id = $this->fields['id'];
+
+        // Excluir as tarefas da implantação
+        $reqTasks = $DB->request('glpi_plugin_taskmaster_implementationtasks', [
+            'plugin_taskmaster_implementations_id' => $id
+        ]);
+        $taskObj = new PluginTaskmasterImplementationTask();
+        foreach ($reqTasks as $task) {
+            // Isso também vai chamar o cleanDBonPurge da tarefa, se existir, para apagar as subtarefas
+            $taskObj->delete(['id' => $task['id']], 1);
+        }
+
+        // Se a tarefa não apagar as subtarefas automaticamente, podemos forçar aqui
+        // Mas o correto é que a PluginTaskmasterImplementationTask tenha seu próprio cleanDBonPurge
+        // De qualquer forma, vamos garantir que as subtarefas relacionadas a essa implantação via as tarefas sumam:
+        // (A chamada acima ao taskObj->delete deve lidar com isso se implementado, mas faremos a exclusão direta por segurança)
+        // Na verdade, taskObj->delete(..., 1) invoca cleanDBonPurge da tarefa.
+
+        // Excluir os vínculos de módulos
+        $DB->delete('glpi_plugin_taskmaster_implementations_modules', [
+            'plugin_taskmaster_implementations_id' => $id
+        ]);
+        
+        return true;
     }
 
     public function rawSearchOptions() {
@@ -166,8 +216,21 @@ class PluginTaskmasterImplementation extends CommonDBTM {
     }
 
     public function prepareInputForAdd($input) {
+        global $DB;
         if (empty($input['entities_id'])) {
             Session::addMessageAfterRedirect("Entidade é obrigatória.", false, ERROR);
+            return false;
+        }
+        
+        // Verifica se já existe uma implantação para a entidade selecionada
+        $count = $DB->request([
+            'COUNT' => 'c',
+            'FROM'  => 'glpi_plugin_taskmaster_implementations',
+            'WHERE' => ['entities_id' => $input['entities_id']]
+        ])->current()['c'];
+
+        if ($count > 0) {
+            Session::addMessageAfterRedirect("Já existe uma implantação cadastrada para esta entidade. Só é permitida uma implantação por entidade.", false, ERROR);
             return false;
         }
         if (empty($input['users_id_responsible'])) {
@@ -181,6 +244,23 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         if (empty($input['_modules']) || !is_array($input['_modules'])) {
             Session::addMessageAfterRedirect("Selecione ao menos um módulo.", false, ERROR);
             return false;
+        }
+        return $input;
+    }
+
+    public function prepareInputForUpdate($input) {
+        global $DB;
+        if (isset($input['entities_id']) && $input['entities_id'] != $this->fields['entities_id']) {
+            $count = $DB->request([
+                'COUNT' => 'c',
+                'FROM'  => 'glpi_plugin_taskmaster_implementations',
+                'WHERE' => ['entities_id' => $input['entities_id']]
+            ])->current()['c'];
+
+            if ($count > 0) {
+                Session::addMessageAfterRedirect("Já existe uma implantação cadastrada para a entidade selecionada. A alteração foi bloqueada.", false, ERROR);
+                return false;
+            }
         }
         return $input;
     }
@@ -305,6 +385,32 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         return true;
     }
 
+    /**
+     * Calcula o percentual de progresso de uma implantação (0 a 100)
+     */
+    static function calculateProgress($id) {
+        global $DB;
+        $totalItems = 0;
+        $doneItems = 0;
+        $tasksReq = $DB->request([
+            'FROM' => 'glpi_plugin_taskmaster_implementationtasks', 
+            'WHERE' => ['plugin_taskmaster_implementations_id' => $id]
+        ]);
+        foreach ($tasksReq as $treq) {
+            $totalItems++;
+            if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) $doneItems++;
+            $subReq = $DB->request([
+                'FROM' => 'glpi_plugin_taskmaster_implementationsubtasks', 
+                'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $treq['id']]
+            ]);
+            foreach ($subReq as $sreq) {
+                $totalItems++;
+                if ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5) $doneItems++;
+            }
+        }
+        return $totalItems > 0 ? ($doneItems / $totalItems) * 100 : 0;
+    }
+
     static function showList() {
         global $DB;
 
@@ -315,6 +421,48 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         // Filtros
         $entities_id = isset($_GET['entities_id']) ? (int)$_GET['entities_id'] : -1;
         $users_id_responsible = isset($_GET['users_id_responsible']) ? (int)$_GET['users_id_responsible'] : 0;
+
+        // Cálculo do Progresso Global (Média aritmética dos percentuais de cada implantação)
+        $baseWhere = getEntitiesRestrictCriteria('impl', 'entities_id', $_SESSION['glpiactiveentities'], true);
+        $baseWhere['e.entities_id'] = 0;
+
+        $implsReq = $DB->request([
+            'SELECT' => ['impl.id'],
+            'FROM'   => 'glpi_plugin_taskmaster_implementations as impl',
+            'INNER JOIN' => [
+                'glpi_entities as e' => [
+                    'ON' => ['impl' => 'entities_id', 'e' => 'id']
+                ]
+            ],
+            'WHERE'  => $baseWhere
+        ]);
+        
+        $totalPercentages = 0;
+        $countImpls = 0;
+        foreach ($implsReq as $impl) {
+            $countImpls++;
+            $totalPercentages += self::calculateProgress($impl['id']);
+        }
+        $g_progress = $countImpls > 0 ? round($totalPercentages / $countImpls, 2) : 0;
+
+        // Exibição do Card de Progresso Global
+        echo "<div class='center' style='margin-bottom: 30px;'>";
+        echo "  <div style='display: inline-block; background: #fff; padding: 25px; border-radius: 16px; 
+                         box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 6px solid #1a237e; min-width: 450px;'>";
+        echo "      <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>";
+        echo "          <div style='font-size: 15px; color: #555; font-weight: 700; text-transform: uppercase;'>Progresso Geral das Implantações</div>";
+        echo "          <div style='background: #e8eaf6; color: #1a237e; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;'>$g_progress%</div>";
+        echo "      </div>";
+        echo "      <div style='background: #eee; height: 14px; border-radius: 7px; overflow: hidden; margin-bottom: 10px;'>";
+        echo "          <div style='background: linear-gradient(90deg, #1a237e 0%, #3f51b5 100%); width: $g_progress%; height: 100%; 
+                                   border-radius: 7px; transition: width 1s ease;'></div>";
+        echo "      </div>";
+        echo "      <div style='display: flex; justify-content: space-between; font-size: 12px; color: #777;'>";
+        echo "          <span>Implantações: <strong>$countImpls</strong></span>";
+        echo "          <span>Média Global</span>";
+        echo "      </div>";
+        echo "  </div>";
+        echo "</div>";
 
         echo "<div class='center' style='margin-bottom: 20px;'>";
         echo "<form method='get' action='".$_SERVER['PHP_SELF']."'>";
@@ -341,18 +489,31 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "</form>";
         echo "</div>";
 
-        $where = [];
+        $where = getEntitiesRestrictCriteria('impl', 'entities_id', $_SESSION['glpiactiveentities'], true);
+        
+        // Restringe a listagem apenas ao primeiro nível (entidades cuja entidade pai é 0)
         if ($entities_id >= 0) {
             $where['impl.entities_id'] = $entities_id;
+        } else {
+            $where['e.entities_id'] = 0;
         }
+        
         if ($users_id_responsible > 0) {
             $where['impl.users_id_responsible'] = $users_id_responsible;
         }
 
         $total_req = $DB->request([
-            'COUNT' => 'c',
-            'FROM'  => "$t_impl as impl",
-            'WHERE' => $where
+            'COUNT'      => 'c',
+            'FROM'       => "$t_impl as impl",
+            'INNER JOIN' => [
+                'glpi_entities as e' => [
+                    'ON' => [
+                        'impl' => 'entities_id',
+                        'e'    => 'id'
+                    ]
+                ]
+            ],
+            'WHERE'      => $where
         ]);
         $total = 0;
         if ($row = $total_req->current()) {
@@ -389,21 +550,8 @@ class PluginTaskmasterImplementation extends CommonDBTM {
 
         foreach ($req as $impl) {
             $id = $impl['id'];
-            
-            // Progress Calculation for this row
-            $totalItems = 0;
-            $doneItems = 0;
-            $tasksReq = $DB->request(['FROM' => 'glpi_plugin_taskmaster_implementationtasks', 'WHERE' => ['plugin_taskmaster_implementations_id' => $id]]);
-            foreach ($tasksReq as $treq) {
-                $totalItems++;
-                if ($treq['status'] == 3 || $treq['status'] == 4) $doneItems++;
-                $subReq = $DB->request(['FROM' => 'glpi_plugin_taskmaster_implementationsubtasks', 'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $treq['id']]]);
-                foreach ($subReq as $sreq) {
-                    $totalItems++;
-                    if ($sreq['status'] == 3 || $sreq['status'] == 4) $doneItems++;
-                }
-            }
-            $progress = $totalItems > 0 ? round(($doneItems / $totalItems) * 100, 2) : 0;
+            $progress = self::calculateProgress($id);
+            $progress = round($progress, 2);
 
             echo "<tr class='tab_bg_1'>";
             echo "<td><a href='".self::getFormURLWithID($id)."'>".$impl['name']."</a></td>";
@@ -454,7 +602,8 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             1 => 'Planejado',
             2 => 'Em andamento',
             3 => 'Concluído',
-            4 => 'Não optante'
+            4 => 'Não optante',
+            5 => 'Não se aplica'
         ];
         return $statuses[$status] ?? 'Desconhecido';
     }
@@ -499,7 +648,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         // Progress Calculation
         $totalItems = 0;
         $doneItems = 0;
-        $statusCounts = [0 => 0, 1 => 0, 2 => 0, 3 => 0, 4 => 0];
+        $statusCounts = [0 => 0, 1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
         
         // Fetch tasks
         $tasksReq = $DB->request(['FROM' => 'glpi_plugin_taskmaster_implementationtasks', 'WHERE' => ['plugin_taskmaster_implementations_id' => $id]]);
@@ -507,14 +656,14 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         
         foreach ($tasksReq as $treq) {
             $totalItems++;
-            if ($treq['status'] == 3 || $treq['status'] == 4) $doneItems++;
+            if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) $doneItems++;
             $statusCounts[$treq['status']]++;
             
             $subReq = $DB->request(['FROM' => 'glpi_plugin_taskmaster_implementationsubtasks', 'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $treq['id']]]);
             $subtasks = [];
             foreach ($subReq as $sreq) {
                 $totalItems++;
-                if ($sreq['status'] == 3 || $sreq['status'] == 4) $doneItems++;
+                if ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5) $doneItems++;
                 $statusCounts[$sreq['status']]++;
                 $subtasks[] = $sreq;
             }
@@ -554,7 +703,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "<th>Não iniciado: {$statusCounts[0]}</th>";
         echo "<th>Planejado: {$statusCounts[1]}</th>";
         echo "<th>Em andamento: {$statusCounts[2]}</th>";
-        echo "<th>Concluído/Não optante: " . ($statusCounts[3] + $statusCounts[4]) . "</th>";
+        echo "<th>Concluído/Não optante/Não se aplica: " . ($statusCounts[3] + $statusCounts[4] + $statusCounts[5]) . "</th>";
         echo "</tr>";
         echo "</table><br>";
 
@@ -722,10 +871,10 @@ class PluginTaskmasterImplementation extends CommonDBTM {
 
             foreach ($moduleTasks as $mt) {
                 $modTotal++;
-                if ($mt['status'] == 3 || $mt['status'] == 4) $modDone++;
+                if ($mt['status'] == 3 || $mt['status'] == 4 || $mt['status'] == 5) $modDone++;
                 foreach ($mt['subtasks'] as $ms) {
                     $modTotal++;
-                    if ($ms['status'] == 3 || $ms['status'] == 4) $modDone++;
+                    if ($ms['status'] == 3 || $ms['status'] == 4 || $ms['status'] == 5) $modDone++;
                 }
             }
 

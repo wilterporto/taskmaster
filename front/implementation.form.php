@@ -45,7 +45,7 @@ if (isset($_POST["add"])) {
         }
     }
     Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
-} else if (isset($_POST["delete"])) {
+} else if (isset($_POST["delete"]) || isset($_POST["purge"])) {
     $impl->check($_POST["id"], PURGE);
     $impl->delete($_POST, 1);
     $impl->redirectToList();

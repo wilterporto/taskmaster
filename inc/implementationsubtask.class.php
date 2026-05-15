@@ -31,10 +31,10 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
 
         $parentTask = new PluginTaskmasterImplementationTask();
         if ($parentTask->getFromDB($this->fields['plugin_taskmaster_implementationtasks_id'])) {
-            if ($parentTask->fields['status'] == 4) {
+            if ($parentTask->fields['status'] == 4 || $parentTask->fields['status'] == 5) {
                 echo "<div class='center'><table class='tab_cadre_fixe'>";
                 echo "<tr><th class='center'>Ação não permitida</th></tr>";
-                echo "<tr class='tab_bg_1'><td class='center'>Esta subtarefa não pode ser editada pois a tarefa principal foi definida como 'Não optante'. Altere o status da tarefa principal para habilitar a edição.</td></tr>";
+                echo "<tr class='tab_bg_1'><td class='center'>Esta subtarefa não pode ser editada pois a tarefa principal foi definida como '" . PluginTaskmasterImplementation::getStatusName($parentTask->fields['status']) . "'. Altere o status da tarefa principal para habilitar a edição.</td></tr>";
                 echo "</table></div>";
                 return false;
             }
@@ -74,7 +74,8 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
             1 => 'Planejado',
             2 => 'Em andamento',
             3 => 'Concluído',
-            4 => 'Não optante'
+            4 => 'Não optante',
+            5 => 'Não se aplica'
         ];
         Dropdown::showFromArray('status', $statuses, [
             'value' => $this->fields['status'],
@@ -163,7 +164,7 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
            var rowEvLink = document.getElementById('row_evidence_link');
            var rowEvFile = document.getElementById('row_evidence_file');
 
-           if (val == 4) { // Não optante
+           if (val == 4 || val == 5) { // Não optante ou Não se aplica
               if (rowStart) rowStart.style.display = 'none';
               if (rowEnd) rowEnd.style.display = 'none';
               if (asterisk) asterisk.style.display = 'inline';
@@ -261,24 +262,24 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
     private function processEvidenceInput($input) {
         $status = isset($input['status']) ? $input['status'] : ($this->fields['status'] ?? 0);
 
-        if ($status == 4) {
+        if ($status == 4 || $status == 5) {
             $parentTask = new PluginTaskmasterImplementationTask();
             $task_id = isset($input['plugin_taskmaster_implementationtasks_id']) ? $input['plugin_taskmaster_implementationtasks_id'] : ($this->fields['plugin_taskmaster_implementationtasks_id'] ?? 0);
-            if ($parentTask->getFromDB($task_id) && $parentTask->fields['status'] == 4) {
-                // Ignora obrigatoriedade se a tarefa principal for "Não optante"
+            if ($parentTask->getFromDB($task_id) && ($parentTask->fields['status'] == 4 || $parentTask->fields['status'] == 5)) {
+                // Ignora obrigatoriedade se a tarefa principal for "Não optante" ou "Não se aplica"
                 return $input;
             }
 
             $obs = isset($input['observacoes']) ? $input['observacoes'] : ($this->fields['observacoes'] ?? '');
             if (empty($obs)) {
-                Session::addMessageAfterRedirect("Observações são obrigatórias para o status 'Não optante'.", false, ERROR);
+                Session::addMessageAfterRedirect("Observações são obrigatórias para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
             $evidence_type = isset($input['evidence_type']) ? $input['evidence_type'] : ($this->fields['evidence_type'] ?? 0);
             
             if (empty($evidence_type) || $evidence_type == 0) {
-                Session::addMessageAfterRedirect("Tipo de evidência é obrigatório para o status 'Não optante'.", false, ERROR);
+                Session::addMessageAfterRedirect("Tipo de evidência é obrigatório para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
