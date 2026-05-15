@@ -126,7 +126,7 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
 
         // Campos de Evidência
         echo "<tr class='tab_bg_1' id='row_evidence_type' style='display:none;'>";
-        echo "<td><label for='evidence_type'>Tipo de evidência <span style='color:red;'>*</span></label></td>";
+        echo "<td><label for='evidence_type'>Tipo de evidência <span id='asterisk_ev_type' style='color:red;'>*</span></label></td>";
         echo "<td>";
         Dropdown::showFromArray('evidence_type', [
             0 => '---',
@@ -140,7 +140,7 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "</tr>";
 
         echo "<tr class='tab_bg_1' id='row_evidence_link' style='display:none;'>";
-        echo "<td><label for='evidence_link'>Link da Evidência <span style='color:red;'>*</span></label></td>";
+        echo "<td><label for='evidence_link'>Link da Evidência <span id='asterisk_link' style='color:red;'>*</span></label></td>";
         echo "<td><input type='text' name='evidence_link' value='".(($this->fields['evidence_type'] ?? 0) == 2 ? ($this->fields['evidence_data'] ?? '') : '')."' style='width:100%'></td>";
         echo "</tr>";
 
@@ -191,8 +191,11 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
            if (val == 4 || val == 5) { // Não optante ou Não se aplica
               if (rowStart) rowStart.style.display = 'none';
               if (rowEnd) rowEnd.style.display = 'none';
-              if (asterisk) asterisk.style.display = 'inline';
+              if (asterisk) asterisk.style.display = (val == 4 ? 'inline' : 'none');
               if (rowEvType) rowEvType.style.display = '';
+              
+              var asteriskEvType = document.getElementById('asterisk_ev_type');
+              if (asteriskEvType) asteriskEvType.style.display = (val == 4 ? 'inline' : 'none');
               
               var evTypeElem = document.getElementsByName('evidence_type')[0];
               if (evTypeElem) {
@@ -205,7 +208,6 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
               if (rowEvType) rowEvType.style.display = 'none';
               if (rowEvLink) rowEvLink.style.display = 'none';
               if (rowEvFile) rowEvFile.style.display = 'none';
-              if (rowEvFile) rowEvFile.style.display = 'none';
            }
         };
 
@@ -214,14 +216,19 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
             var rowEvFile = document.getElementById('row_evidence_file');
             var statusElem = document.getElementsByName('status')[0];
             var status = statusElem ? statusElem.value : 0;
+            
+            var asteriskLink = document.getElementById('asterisk_link');
+            var asteriskFile = document.getElementById('asterisk_file');
 
-            if (status == 4) {
+            if (status == 4 || status == 5) {
                 if (val == 1) { // Arquivo
                     if (rowEvLink) rowEvLink.style.display = 'none';
                     if (rowEvFile) rowEvFile.style.display = '';
+                    if (asteriskFile) asteriskFile.style.display = (status == 4 ? 'inline' : 'none');
                 } else if (val == 2) { // Link
                     if (rowEvLink) rowEvLink.style.display = '';
                     if (rowEvFile) rowEvFile.style.display = 'none';
+                    if (asteriskLink) asteriskLink.style.display = (status == 4 ? 'inline' : 'none');
                 } else {
                     if (rowEvLink) rowEvLink.style.display = 'none';
                     if (rowEvFile) rowEvFile.style.display = 'none';
@@ -289,21 +296,21 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
 
         if ($status == 4 || $status == 5) {
             $obs = isset($input['observacoes']) ? $input['observacoes'] : ($this->fields['observacoes'] ?? '');
-            if (empty($obs)) {
+            if ($status == 4 && empty($obs)) {
                 Session::addMessageAfterRedirect("Observações são obrigatórias para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
             $evidence_type = isset($input['evidence_type']) ? $input['evidence_type'] : ($this->fields['evidence_type'] ?? 0);
             
-            if (empty($evidence_type) || $evidence_type == 0) {
+            if ($status == 4 && (empty($evidence_type) || $evidence_type == 0)) {
                 Session::addMessageAfterRedirect("Tipo de evidência é obrigatório para o status '" . PluginTaskmasterImplementation::getStatusName($status) . "'.", false, ERROR);
                 return false;
             }
 
             if ($evidence_type == 2) { // Link
                 if (isset($input['evidence_link'])) {
-                    if (empty($input['evidence_link'])) {
+                    if ($status == 4 && empty($input['evidence_link'])) {
                         Session::addMessageAfterRedirect("O link da evidência é obrigatório.", false, ERROR);
                         return false;
                     }
@@ -357,7 +364,7 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
                     }
                 }
                 
-                if (!$has_file) {
+                if ($status == 4 && !$has_file) {
                     Session::addMessageAfterRedirect("O arquivo de evidência é obrigatório.", false, ERROR);
                     return false;
                 }
