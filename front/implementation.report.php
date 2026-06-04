@@ -73,24 +73,34 @@ foreach ($tasksReq as $t) {
         $tasksByModule[$modId] = ['total' => 0, 'done' => 0];
     }
 
-    $globalTotal++;
-    $tasksByModule[$modId]['total']++;
-    if ($t['status'] == 3 || $t['status'] == 4) {
-        $globalDone++;
-        $tasksByModule[$modId]['done']++;
-    }
-
     // Subtarefas
     $subReq = $DB->request([
         'FROM'  => 'glpi_plugin_taskmaster_implementationsubtasks',
         'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $t['id']]
     ]);
+    $subtasks = [];
     foreach ($subReq as $s) {
+        $subtasks[] = $s;
+    }
+    
+    $hasSubtasks = count($subtasks) > 0;
+    
+    if (!$hasSubtasks) {
         $globalTotal++;
         $tasksByModule[$modId]['total']++;
-        if ($s['status'] == 3 || $s['status'] == 4) {
+        if ($t['status'] == 3 || $t['status'] == 4 || $t['status'] == 5) {
             $globalDone++;
             $tasksByModule[$modId]['done']++;
+        }
+    } else {
+        foreach ($subtasks as $s) {
+            $globalTotal++;
+            $tasksByModule[$modId]['total']++;
+            $isDone = ($s['status'] == 3 || $s['status'] == 4 || $s['status'] == 5 || $t['status'] == 4 || $t['status'] == 5);
+            if ($isDone) {
+                $globalDone++;
+                $tasksByModule[$modId]['done']++;
+            }
         }
     }
 }

@@ -397,15 +397,28 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             'WHERE' => ['plugin_taskmaster_implementations_id' => $id]
         ]);
         foreach ($tasksReq as $treq) {
-            $totalItems++;
-            if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) $doneItems++;
             $subReq = $DB->request([
                 'FROM' => 'glpi_plugin_taskmaster_implementationsubtasks', 
                 'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $treq['id']]
             ]);
+            $subtasks = [];
             foreach ($subReq as $sreq) {
+                $subtasks[] = $sreq;
+            }
+            $hasSubtasks = count($subtasks) > 0;
+            
+            if (!$hasSubtasks) {
                 $totalItems++;
-                if ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5) $doneItems++;
+                if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) {
+                    $doneItems++;
+                }
+            } else {
+                foreach ($subtasks as $sreq) {
+                    $totalItems++;
+                    if ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5 || $treq['status'] == 4 || $treq['status'] == 5) {
+                        $doneItems++;
+                    }
+                }
             }
         }
         return $totalItems > 0 ? ($doneItems / $totalItems) * 100 : 0;
@@ -655,20 +668,35 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         $tasks = [];
         
         foreach ($tasksReq as $treq) {
-            $totalItems++;
-            if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) $doneItems++;
-            $statusCounts[$treq['status']]++;
-            
             $subReq = $DB->request(['FROM' => 'glpi_plugin_taskmaster_implementationsubtasks', 'WHERE' => ['plugin_taskmaster_implementationtasks_id' => $treq['id']]]);
             $subtasks = [];
             foreach ($subReq as $sreq) {
-                $totalItems++;
-                if ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5) $doneItems++;
-                $statusCounts[$sreq['status']]++;
                 $subtasks[] = $sreq;
             }
             $treq['subtasks'] = $subtasks;
             $tasks[] = $treq;
+            
+            $hasSubtasks = count($subtasks) > 0;
+            if (!$hasSubtasks) {
+                $totalItems++;
+                if ($treq['status'] == 3 || $treq['status'] == 4 || $treq['status'] == 5) {
+                    $doneItems++;
+                }
+                $statusCounts[$treq['status']]++;
+            } else {
+                foreach ($subtasks as $sreq) {
+                    $totalItems++;
+                    $isDone = ($sreq['status'] == 3 || $sreq['status'] == 4 || $sreq['status'] == 5 || $treq['status'] == 4 || $treq['status'] == 5);
+                    if ($isDone) {
+                        $doneItems++;
+                    }
+                    if ($treq['status'] == 4 || $treq['status'] == 5) {
+                        $statusCounts[$treq['status']]++;
+                    } else {
+                        $statusCounts[$sreq['status']]++;
+                    }
+                }
+            }
         }
         
         $progress = $totalItems > 0 ? round(($doneItems / $totalItems) * 100, 2) : 0;
@@ -870,11 +898,19 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             $modDone       = 0;
 
             foreach ($moduleTasks as $mt) {
-                $modTotal++;
-                if ($mt['status'] == 3 || $mt['status'] == 4 || $mt['status'] == 5) $modDone++;
-                foreach ($mt['subtasks'] as $ms) {
+                $hasSubtasks = !empty($mt['subtasks']);
+                if (!$hasSubtasks) {
                     $modTotal++;
-                    if ($ms['status'] == 3 || $ms['status'] == 4 || $ms['status'] == 5) $modDone++;
+                    if ($mt['status'] == 3 || $mt['status'] == 4 || $mt['status'] == 5) {
+                        $modDone++;
+                    }
+                } else {
+                    foreach ($mt['subtasks'] as $ms) {
+                        $modTotal++;
+                        if ($ms['status'] == 3 || $ms['status'] == 4 || $ms['status'] == 5 || $mt['status'] == 4 || $mt['status'] == 5) {
+                            $modDone++;
+                        }
+                    }
                 }
             }
 
