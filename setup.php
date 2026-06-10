@@ -1,5 +1,5 @@
 <?php
-define('TASKMASTER_VERSION', '2.0.1');
+define('TASKMASTER_VERSION', '2.0.2');
 define('TASKMASTER_DIR', dirname(__FILE__));
 
 /**
@@ -59,6 +59,18 @@ function plugin_init_taskmaster() {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `observacoes` LONGTEXT DEFAULT NULL ");
         } else {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` MODIFY `observacoes` LONGTEXT DEFAULT NULL ");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
+        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationtasks', 'status_uso')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0 ");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
+        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationsubtasks', 'status_uso')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0 ");
         }
     }
 

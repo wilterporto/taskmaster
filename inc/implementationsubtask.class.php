@@ -67,7 +67,7 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         echo "</tr>";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='status'>Status <span style='color:red;'>*</span></label></td>";
+        echo "<td><label for='status'>Capacitação <span style='color:red;'>*</span></label></td>";
         echo "<td>";
         $statuses = [
             0 => 'Não iniciado',
@@ -80,6 +80,20 @@ class PluginTaskmasterImplementationSubtask extends CommonDBTM {
         Dropdown::showFromArray('status', $statuses, [
             'value' => $this->fields['status'],
             'on_change' => 'checkStatusOptante(this.value)'
+        ]);
+        echo "</td>";
+        echo "</tr>";
+
+        echo "<tr class='tab_bg_1'>";
+        echo "<td><label for='status_uso'>Utilização <span style='color:red;'>*</span></label></td>";
+        echo "<td>";
+        $use_statuses = [
+            0 => 'Não iniciado',
+            1 => 'Em uso',
+            2 => 'Não se aplica'
+        ];
+        Dropdown::showFromArray('status_uso', $use_statuses, [
+            'value' => $this->fields['status_uso'] ?? 0
         ]);
         echo "</td>";
         echo "</tr>";

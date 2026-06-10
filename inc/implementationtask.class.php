@@ -66,7 +66,7 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         echo "</tr>";
 
         echo "<tr class='tab_bg_1'>";
-        echo "<td><label for='status'>Status <span style='color:red;'>*</span></label></td>";
+        echo "<td><label for='status'>Capacitação <span style='color:red;'>*</span></label></td>";
         echo "<td>";
         $statuses = [
             0 => 'Não iniciado',
@@ -79,6 +79,20 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         Dropdown::showFromArray('status', $statuses, [
             'value' => $this->fields['status'],
             'on_change' => 'checkStatusOptante(this.value)'
+        ]);
+        echo "</td>";
+        echo "</tr>";
+ 
+        echo "<tr class='tab_bg_1'>";
+        echo "<td><label for='status_uso'>Utilização <span style='color:red;'>*</span></label></td>";
+        echo "<td>";
+        $use_statuses = [
+            0 => 'Não iniciado',
+            1 => 'Em uso',
+            2 => 'Não se aplica'
+        ];
+        Dropdown::showFromArray('status_uso', $use_statuses, [
+            'value' => $this->fields['status_uso'] ?? 0
         ]);
         echo "</td>";
         echo "</tr>";
@@ -162,10 +176,10 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
 
         if ($has_subtasks) {
             echo "<tr class='tab_bg_1' id='row_complete_subtasks' style='display:none;'>";
-            echo "<td><label for='_complete_subtasks'>Propagar status para subtarefas?</label></td>";
+            echo "<td><label for='_complete_subtasks'>Propagar capacitação e utilização para subtarefas?</label></td>";
             echo "<td>";
             Html::showCheckbox(['name' => '_complete_subtasks', 'value' => 1, 'id' => '_complete_subtasks']);
-            echo " <span style='font-size:11px; color:#666;'>(Aplica o mesmo status e analista a todas as subtarefas desta tarefa)</span>";
+            echo " <span style='font-size:11px; color:#666;'>(Aplica a mesma capacitação, utilização e analista a todas as subtarefas desta tarefa)</span>";
             echo "</td>";
             echo "</tr>";
         }
@@ -391,12 +405,19 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
             
             $subtask = new PluginTaskmasterImplementationSubtask();
             foreach ($req as $row) {
-                if ($row['status'] != $target_status || $row['users_id_analyst'] != $this->fields['users_id_analyst']) {
-                    $subtask->update([
-                        'id'               => $row['id'],
-                        'status'           => $target_status,
-                        'users_id_analyst' => $this->fields['users_id_analyst']
-                    ]);
+                $update_fields = [];
+                if ($row['status'] != $target_status) {
+                    $update_fields['status'] = $target_status;
+                }
+                if ($row['users_id_analyst'] != $this->fields['users_id_analyst']) {
+                    $update_fields['users_id_analyst'] = $this->fields['users_id_analyst'];
+                }
+                if ($row['status_uso'] != $this->fields['status_uso']) {
+                    $update_fields['status_uso'] = $this->fields['status_uso'];
+                }
+                if (!empty($update_fields)) {
+                    $update_fields['id'] = $row['id'];
+                    $subtask->update($update_fields);
                 }
             }
         }

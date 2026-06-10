@@ -84,6 +84,7 @@ function plugin_taskmaster_install() {
             `plugin_taskmaster_implementations_id` INT(11) NOT NULL,
             `plugin_taskmaster_tasks_id` INT(11) NOT NULL,
             `status` INT(11) NOT NULL DEFAULT 0,
+            `status_uso` TINYINT(1) NOT NULL DEFAULT 0,
             `users_id_analyst` INT(11) DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
@@ -103,6 +104,7 @@ function plugin_taskmaster_install() {
             `plugin_taskmaster_implementationtasks_id` INT(11) NOT NULL,
             `plugin_taskmaster_subtasks_id` INT(11) NOT NULL,
             `status` INT(11) NOT NULL DEFAULT 0,
+            `status_uso` TINYINT(1) NOT NULL DEFAULT 0,
             `users_id_analyst` INT(11) DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
@@ -181,6 +183,9 @@ function plugin_taskmaster_upgrade() {
         if (!$DB->columnExists('glpi_plugin_taskmaster_implementationtasks', 'evidence_data')) {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `evidence_data` TEXT DEFAULT NULL");
         }
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationtasks', 'status_uso')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0");
+        }
     }
 
     if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
@@ -189,6 +194,9 @@ function plugin_taskmaster_upgrade() {
         }
         if (!$DB->columnExists('glpi_plugin_taskmaster_implementationsubtasks', 'evidence_data')) {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `evidence_data` TEXT DEFAULT NULL");
+        }
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementationsubtasks', 'status_uso')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0");
         }
     }
 

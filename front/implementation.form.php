@@ -28,6 +28,16 @@ if (isset($_POST["add"])) {
         Session::addMessageAfterRedirect("Todas as tarefas e subtarefas do módulo foram concluídas com sucesso!", false, INFO);
     }
     Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
+} else if (isset($_POST["complete_module_use"])) {
+    Toolbox::logInFile('taskmaster', "POST complete_module_use: id=" . ($_POST["id"] ?? 'null') . ", complete_use_module_id=" . ($_POST["complete_use_module_id"] ?? 'null') . "\n");
+    $impl->check($_POST["id"], UPDATE);
+    if (empty($_POST["complete_use_module_id"]) || $_POST["complete_use_module_id"] <= 0) {
+        Session::addMessageAfterRedirect("Selecione o módulo que deseja concluir a utilização.", false, ERROR);
+    } else {
+        $impl->completeModuleUse($_POST["id"], $_POST["complete_use_module_id"]);
+        Session::addMessageAfterRedirect("A utilização de todas as tarefas e subtarefas do módulo foi concluída com sucesso!", false, INFO);
+    }
+    Html::redirect($impl->getFormURL()."?id=".$_POST["id"]);
 } else if (isset($_POST["add_module"])) {
     $impl->check($_POST["id"], UPDATE);
     $impl->addModule($_POST["id"], $_POST["add_module_id"]);

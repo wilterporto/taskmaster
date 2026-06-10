@@ -62,7 +62,9 @@ $tasksReq = $DB->request([
 
 $globalTotal = 0;
 $globalDone  = 0;
-$tasksByModule = [];    // [module_id => ['total' => int, 'done' => int]]
+$globalUseTotal = 0;
+$globalUseInUse = 0;
+$tasksByModule = [];    // [module_id => ['total' => int, 'done' => int, 'use_total' => int, 'use_in_use' => int]]
 
 foreach ($tasksReq as $t) {
     $tObj = new PluginTaskmasterTask();
@@ -70,7 +72,7 @@ foreach ($tasksReq as $t) {
     $modId = $tObj->fields['plugin_taskmaster_modules_id'];
 
     if (!isset($tasksByModule[$modId])) {
-        $tasksByModule[$modId] = ['total' => 0, 'done' => 0];
+        $tasksByModule[$modId] = ['total' => 0, 'done' => 0, 'use_total' => 0, 'use_in_use' => 0];
     }
 
     // Subtarefas
@@ -92,6 +94,13 @@ foreach ($tasksReq as $t) {
             $globalDone++;
             $tasksByModule[$modId]['done']++;
         }
+
+        $globalUseTotal++;
+        $tasksByModule[$modId]['use_total']++;
+        if (isset($t['status_uso']) && ($t['status_uso'] == 1 || $t['status_uso'] == 2)) {
+            $globalUseInUse++;
+            $tasksByModule[$modId]['use_in_use']++;
+        }
     } else {
         foreach ($subtasks as $s) {
             $globalTotal++;
@@ -101,24 +110,36 @@ foreach ($tasksReq as $t) {
                 $globalDone++;
                 $tasksByModule[$modId]['done']++;
             }
+
+            $globalUseTotal++;
+            $tasksByModule[$modId]['use_total']++;
+            if (isset($s['status_uso']) && ($s['status_uso'] == 1 || $s['status_uso'] == 2)) {
+                $globalUseInUse++;
+                $tasksByModule[$modId]['use_in_use']++;
+            }
         }
     }
 }
 
 $globalProgress = $globalTotal > 0 ? round(($globalDone / $globalTotal) * 100, 1) : 0;
+$globalUseProgress = $globalUseTotal > 0 ? round(($globalUseInUse / $globalUseTotal) * 100, 1) : 0;
 
 // ── Módulos em ordem alfabética ───────────────────────────────────────────────
 $modulesData = [];
 foreach ($moduleIds as $mId) {
     $mod = new PluginTaskmasterModule();
     if (!$mod->getFromDB($mId)) continue;
-    $stats = $tasksByModule[$mId] ?? ['total' => 0, 'done' => 0];
+    $stats = $tasksByModule[$mId] ?? ['total' => 0, 'done' => 0, 'use_total' => 0, 'use_in_use' => 0];
     $pct   = $stats['total'] > 0 ? round(($stats['done'] / $stats['total']) * 100, 1) : 0;
+    $usePct = $stats['use_total'] > 0 ? round(($stats['use_in_use'] / $stats['use_total']) * 100, 1) : 0;
     $modulesData[] = [
         'name'     => $mod->fields['name'],
         'total'    => $stats['total'],
         'done'     => $stats['done'],
         'progress' => $pct,
+        'use_total' => $stats['use_total'],
+        'use_in_use' => $stats['use_in_use'],
+        'use_progress' => $usePct,
     ];
 }
 usort($modulesData, fn($a, $b) => strcmp($a['name'], $b['name']));
@@ -421,26 +442,46 @@ function progressBarColor(float $pct): string {
         </div>
     </div>
 
-    <!-- Progresso Global -->
+    <!-- Capacitação Global e Utilização -->
     <div class="global-progress-section">
-        <h2>Progresso Geral</h2>
-        <div class="global-card">
-            <div class="global-pct-circle" style="background:<?= progressBarColor($globalProgress) ?>;">
-                <?= $globalProgress ?>%
-            </div>
-            <div class="global-info">
-                <div class="title">Conclusão total da implantação</div>
-                <div class="bar-track">
-                    <div class="bar-fill" style="width:<?= $globalProgress ?>%; background:<?= progressBarColor($globalProgress) ?>;"></div>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Capacitação Geral</h2>
+                <div class="global-card">
+                    <div class="global-pct-circle" style="background:<?= progressBarColor($globalProgress) ?>;">
+                        <?= $globalProgress ?>%
+                    </div>
+                    <div class="global-info">
+                        <div class="title">Conclusão total da implantação</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width:<?= $globalProgress ?>%; background:<?= progressBarColor($globalProgress) ?>;"></div>
+                        </div>
+                        <div class="counter"><?= $globalDone ?> de <?= $globalTotal ?> item<?= $globalTotal != 1 ? 's' : '' ?> concluído<?= $globalDone != 1 ? 's' : '' ?> (tarefas + subtarefas)</div>
+                    </div>
                 </div>
-                <div class="counter"><?= $globalDone ?> de <?= $globalTotal ?> item<?= $globalTotal != 1 ? 's' : '' ?> concluído<?= $globalDone != 1 ? 's' : '' ?> (tarefas + subtarefas)</div>
+            </div>
+            
+            <div style="flex: 1; min-width: 300px;">
+                <h2>Utilização Geral</h2>
+                <div class="global-card">
+                    <div class="global-pct-circle" style="background:<?= progressBarColor($globalUseProgress) ?>;">
+                        <?= $globalUseProgress ?>%
+                    </div>
+                    <div class="global-info">
+                        <div class="title">Percentual de utilização da implantação</div>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width:<?= $globalUseProgress ?>%; background:<?= progressBarColor($globalUseProgress) ?>;"></div>
+                        </div>
+                        <div class="counter"><?= $globalUseInUse ?> de <?= $globalUseTotal ?> item<?= $globalUseTotal != 1 ? 's' : '' ?> em utilização</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Tabela de Módulos -->
     <div class="modules-section">
-        <h2>Progresso por Módulo (ordem alfabética)</h2>
+        <h2>Capacitação por Módulo (ordem alfabética)</h2>
 
         <?php if (empty($modulesData)): ?>
             <p style="color:#90a4ae; font-style:italic;">Nenhum módulo vinculado a esta implantação.</p>
@@ -450,9 +491,12 @@ function progressBarColor(float $pct): string {
                 <tr>
                     <th>#</th>
                     <th>Módulo</th>
-                    <th class="center">Itens</th>
-                    <th style="width:180px;">Progresso</th>
-                    <th class="right" style="width:70px;">%</th>
+                    <th class="center">Itens Concluídos</th>
+                    <th style="width:130px;">Capacitação</th>
+                    <th class="right" style="width:60px;">% Capacitação</th>
+                    <th class="center">Itens em Utilização</th>
+                    <th style="width:130px;">Utilização</th>
+                    <th class="right" style="width:60px;">% Utilização</th>
                 </tr>
             </thead>
             <tbody>
@@ -461,6 +505,10 @@ function progressBarColor(float $pct): string {
                     $bgColor  = progressBgColor($mod['progress']);
                     $txtColor = progressColor($mod['progress']);
                     $barColor = progressBarColor($mod['progress']);
+                    
+                    $useBgColor  = progressBgColor($mod['use_progress']);
+                    $useTxtColor = progressColor($mod['use_progress']);
+                    $useBarColor = progressBarColor($mod['use_progress']);
                 ?>
                 <tr>
                     <td style="color:#90a4ae; width:30px;"><?= $i + 1 ?></td>
@@ -476,6 +524,19 @@ function progressBarColor(float $pct): string {
                     <td class="right">
                         <span class="pct-badge" style="background:<?= $bgColor ?>; color:<?= $txtColor ?>;">
                             <?= $mod['progress'] ?>%
+                        </span>
+                    </td>
+                    <td class="center" style="color:#546e7a; font-size:11px;">
+                        <?= $mod['use_in_use'] ?> / <?= $mod['use_total'] ?>
+                    </td>
+                    <td>
+                        <div class="mini-bar-track">
+                            <div class="mini-bar-fill" style="width:<?= $mod['use_progress'] ?>%; background:<?= $useBarColor ?>;"></div>
+                        </div>
+                    </td>
+                    <td class="right">
+                        <span class="pct-badge" style="background:<?= $useBgColor ?>; color:<?= $useTxtColor ?>;">
+                            <?= $mod['use_progress'] ?>%
                         </span>
                     </td>
                 </tr>
