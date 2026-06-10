@@ -502,16 +502,21 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         ]);
         
         $totalPercentages = 0;
+        $totalUsePercentages = 0;
         $countImpls = 0;
         foreach ($implsReq as $impl) {
             $countImpls++;
             $totalPercentages += self::calculateProgress($impl['id']);
+            $totalUsePercentages += self::calculateUseStatusPercentage($impl['id']);
         }
         $g_progress = $countImpls > 0 ? round($totalPercentages / $countImpls, 2) : 0;
+        $g_use_progress = $countImpls > 0 ? round($totalUsePercentages / $countImpls, 2) : 0;
 
-        // Exibição do Card de Progresso Global
-        echo "<div class='center' style='margin-bottom: 30px;'>";
-        echo "  <div style='display: inline-block; background: #fff; padding: 25px; border-radius: 16px; 
+        // Exibição dos Cards de Progresso Global (Capacitação e Utilização)
+        echo "<div style='display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; flex-wrap: wrap;'>";
+        
+        // Card de Capacitação Geral
+        echo "  <div style='background: #fff; padding: 25px; border-radius: 16px; 
                          box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 6px solid #1a237e; min-width: 450px;'>";
         echo "      <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>";
         echo "          <div style='font-size: 15px; color: #555; font-weight: 700; text-transform: uppercase;'>Capacitação Geral das Implantações</div>";
@@ -526,6 +531,24 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "          <span>Média Global</span>";
         echo "      </div>";
         echo "  </div>";
+
+        // Card de Utilização Geral
+        echo "  <div style='background: #fff; padding: 25px; border-radius: 16px; 
+                         box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 6px solid #2e7d32; min-width: 450px;'>";
+        echo "      <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>";
+        echo "          <div style='font-size: 15px; color: #555; font-weight: 700; text-transform: uppercase;'>Utilização Geral das Implantações</div>";
+        echo "          <div style='background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;'>$g_use_progress%</div>";
+        echo "      </div>";
+        echo "      <div style='background: #eee; height: 14px; border-radius: 7px; overflow: hidden; margin-bottom: 10px;'>";
+        echo "          <div style='background: linear-gradient(90deg, #2e7d32 0%, #4caf50 100%); width: $g_use_progress%; height: 100%; 
+                                   border-radius: 7px; transition: width 1s ease;'></div>";
+        echo "      </div>";
+        echo "      <div style='display: flex; justify-content: space-between; font-size: 12px; color: #777;'>";
+        echo "          <span>Implantações: <strong>$countImpls</strong></span>";
+        echo "          <span>Média Global</span>";
+        echo "      </div>";
+        echo "  </div>";
+        
         echo "</div>";
 
         echo "<div class='center' style='margin-bottom: 20px;'>";
