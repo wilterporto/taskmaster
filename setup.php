@@ -1,5 +1,5 @@
 <?php
-define('TASKMASTER_VERSION', '2.0.2');
+define('TASKMASTER_VERSION', '11.0.0');
 define('TASKMASTER_DIR', dirname(__FILE__));
 
 /**
@@ -34,63 +34,6 @@ function plugin_init_taskmaster() {
         $PLUGIN_HOOKS['menu_toadd']['taskmaster'] = ['tools' => $menuItems];
     }
 
-    // Auto-update schema for new mandatory fields
-    global $DB;
-    if ($DB->tableExists('glpi_plugin_taskmaster_implementations')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementations', 'users_id_responsible')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD `users_id_responsible` INT(11) NOT NULL DEFAULT 0 AFTER `entities_id` ");
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD KEY `analyst` (`users_id_responsible`) ");
-        }
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementations', 'date_begin')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD `date_begin` DATETIME DEFAULT NULL AFTER `users_id_responsible` ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationtasks', 'observacoes')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `observacoes` LONGTEXT DEFAULT NULL ");
-        } else {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` MODIFY `observacoes` LONGTEXT DEFAULT NULL ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationsubtasks', 'observacoes')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `observacoes` LONGTEXT DEFAULT NULL ");
-        } else {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` MODIFY `observacoes` LONGTEXT DEFAULT NULL ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationtasks', 'status_uso')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0 ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_implementationsubtasks', 'status_uso')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0 ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_tasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_tasks', 'is_active')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_tasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1 ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_subtasks')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_subtasks', 'is_active')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_subtasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1 ");
-        }
-    }
-
-    if ($DB->tableExists('glpi_plugin_taskmaster_modules')) {
-        if (!$DB->fieldExists('glpi_plugin_taskmaster_modules', 'training_hours')) {
-            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_modules` ADD `training_hours` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `name` ");
-        }
-    }
 }
 
 /**
@@ -102,12 +45,12 @@ function plugin_version_taskmaster() {
     return [
         'name'           => 'Taskmaster',
         'version'        => TASKMASTER_VERSION,
-        'author'         => 'Wilter P. Porto',
+        'author'         => 'Wilter Porto',
         'license'        => 'GPLv2+',
         'homepage'       => '',
         'requirements'   => [
             'glpi' => [
-                'min' => '10.0.0',
+                'min' => '11.0.0',
                 'max' => '12.0.0'
             ]
         ]
@@ -120,8 +63,8 @@ function plugin_version_taskmaster() {
  * @return boolean
  */
 function plugin_taskmaster_check_prerequisites() {
-    if (version_compare(GLPI_VERSION, '10.0.0', 'lt')) {
-        echo "Este plugin requer GLPI 10.0.0 ou superior.";
+    if (version_compare(GLPI_VERSION, '11.0.0', 'lt') || version_compare(GLPI_VERSION, '12.0.0', 'ge')) {
+        echo "Este plugin requer GLPI 11.0.0 ou superior (compatível até GLPI 11.x).";
         return false;
     }
     return true;

@@ -16,19 +16,19 @@ class PluginTaskmasterModule extends CommonDBTM {
         return "fas fa-cubes";
     }
 
-    static function canCreate() {
+    static function canCreate(): bool {
         return Session::haveRight('plugin_taskmaster_module', CREATE);
     }
     
-    static function canView() {
+    static function canView(): bool {
         return Session::haveRight('plugin_taskmaster_module', READ);
     }
     
-    static function canUpdate() {
+    static function canUpdate(): bool {
         return Session::haveRight('plugin_taskmaster_module', UPDATE);
     }
     
-    static function canDelete() {
+    static function canDelete(): bool {
         return Session::haveRight('plugin_taskmaster_module', PURGE);
     }
 
@@ -122,7 +122,7 @@ class PluginTaskmasterModule extends CommonDBTM {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], '', 0);
+        Html::printPager($start, $total, self::getSearchURL(), '', 0);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
@@ -204,6 +204,7 @@ class PluginTaskmasterModule extends CommonDBTM {
 
         echo "</table>";
         echo "</div>";
+        Html::printPager($start, $total, self::getSearchURL(), '', 0);
 
         echo "<script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -274,7 +275,7 @@ class PluginTaskmasterModule extends CommonDBTM {
         return true;
     }
 
-    public function canPurgeItem() {
+    public function canPurgeItem(): bool {
         global $DB;
         $id = $this->fields['id'];
 

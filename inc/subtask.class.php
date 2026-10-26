@@ -17,19 +17,19 @@ class PluginTaskmasterSubtask extends CommonDBTM {
         return "fas fa-list-ol";
     }
 
-    static function canCreate() {
+    static function canCreate(): bool {
         return Session::haveRight('plugin_taskmaster_module', CREATE);
     }
     
-    static function canView() {
+    static function canView(): bool {
         return Session::haveRight('plugin_taskmaster_module', READ);
     }
     
-    static function canUpdate() {
+    static function canUpdate(): bool {
         return Session::haveRight('plugin_taskmaster_module', UPDATE);
     }
     
-    static function canDelete() {
+    static function canDelete(): bool {
         return Session::haveRight('plugin_taskmaster_module', PURGE);
     }
 
@@ -192,7 +192,7 @@ class PluginTaskmasterSubtask extends CommonDBTM {
         echo "</table></div>";
     }
 
-    public function canPurgeItem() {
+    public function canPurgeItem(): bool {
         global $DB;
         $id = $this->fields['id'];
 

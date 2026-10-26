@@ -12,11 +12,11 @@ class PluginTaskmasterImplementationTask extends CommonDBTM {
         return _n('Tarefa da Implantação', 'Tarefas da Implantação', $nb, 'taskmaster');
     }
 
-    static function canView() {
+    static function canView(): bool {
         return Session::haveRight(self::$rightname, READ);
     }
 
-    static function canUpdate() {
+    static function canUpdate(): bool {
         return Session::haveRight(self::$rightname, UPDATE);
     }
 

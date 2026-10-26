@@ -13,7 +13,7 @@ function plugin_taskmaster_install() {
     // Create tables
     if (!$DB->tableExists('glpi_plugin_taskmaster_modules')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_modules` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `name` VARCHAR(255) DEFAULT NULL,
             `training_hours` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
             `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -25,9 +25,10 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_tasks')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_tasks` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `plugin_taskmaster_modules_id` INT(11) NOT NULL,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `plugin_taskmaster_modules_id` INT UNSIGNED NOT NULL,
             `name` VARCHAR(255) DEFAULT NULL,
+            `is_active` TINYINT(1) NOT NULL DEFAULT 1,
             `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`),
@@ -38,9 +39,10 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_subtasks')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_subtasks` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `plugin_taskmaster_tasks_id` INT(11) NOT NULL,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `plugin_taskmaster_tasks_id` INT UNSIGNED NOT NULL,
             `name` VARCHAR(255) DEFAULT NULL,
+            `is_active` TINYINT(1) NOT NULL DEFAULT 1,
             `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `date_mod` TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (`id`),
@@ -51,10 +53,10 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_implementations')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_implementations` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `name` VARCHAR(255) DEFAULT NULL,
-            `entities_id` INT(11) NOT NULL DEFAULT 0,
-            `users_id_responsible` INT(11) NOT NULL DEFAULT 0,
+            `entities_id` INT UNSIGNED NOT NULL DEFAULT 0,
+            `users_id_responsible` INT UNSIGNED NOT NULL DEFAULT 0,
             `date_begin` DATETIME DEFAULT NULL,
             `is_recursive` TINYINT(1) NOT NULL DEFAULT 0,
             `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -68,9 +70,9 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_implementations_modules')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_implementations_modules` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `plugin_taskmaster_implementations_id` INT(11) NOT NULL,
-            `plugin_taskmaster_modules_id` INT(11) NOT NULL,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `plugin_taskmaster_implementations_id` INT UNSIGNED NOT NULL,
+            `plugin_taskmaster_modules_id` INT UNSIGNED NOT NULL,
             PRIMARY KEY (`id`),
             KEY `implementation` (`plugin_taskmaster_implementations_id`),
             KEY `module` (`plugin_taskmaster_modules_id`)
@@ -80,12 +82,12 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_implementationtasks')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_implementationtasks` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `plugin_taskmaster_implementations_id` INT(11) NOT NULL,
-            `plugin_taskmaster_tasks_id` INT(11) NOT NULL,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `plugin_taskmaster_implementations_id` INT UNSIGNED NOT NULL,
+            `plugin_taskmaster_tasks_id` INT UNSIGNED NOT NULL,
             `status` INT(11) NOT NULL DEFAULT 0,
             `status_uso` TINYINT(1) NOT NULL DEFAULT 0,
-            `users_id_analyst` INT(11) DEFAULT 0,
+            `users_id_analyst` INT UNSIGNED DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
             `observacoes` LONGTEXT DEFAULT NULL,
@@ -100,12 +102,12 @@ function plugin_taskmaster_install() {
 
     if (!$DB->tableExists('glpi_plugin_taskmaster_implementationsubtasks')) {
         $query = "CREATE TABLE `glpi_plugin_taskmaster_implementationsubtasks` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
-            `plugin_taskmaster_implementationtasks_id` INT(11) NOT NULL,
-            `plugin_taskmaster_subtasks_id` INT(11) NOT NULL,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `plugin_taskmaster_implementationtasks_id` INT UNSIGNED NOT NULL,
+            `plugin_taskmaster_subtasks_id` INT UNSIGNED NOT NULL,
             `status` INT(11) NOT NULL DEFAULT 0,
             `status_uso` TINYINT(1) NOT NULL DEFAULT 0,
-            `users_id_analyst` INT(11) DEFAULT 0,
+            `users_id_analyst` INT UNSIGNED DEFAULT 0,
             `date_start` DATETIME NULL DEFAULT NULL,
             `date_end` DATETIME NULL DEFAULT NULL,
             `observacoes` LONGTEXT DEFAULT NULL,
@@ -197,6 +199,81 @@ function plugin_taskmaster_upgrade() {
         }
         if (!$DB->columnExists('glpi_plugin_taskmaster_implementationsubtasks', 'status_uso')) {
             $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementationsubtasks` ADD `status_uso` TINYINT(1) NOT NULL DEFAULT 0");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_tasks')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_tasks', 'is_active')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_tasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_subtasks')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_subtasks', 'is_active')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_subtasks` ADD `is_active` TINYINT(1) NOT NULL DEFAULT 1");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_modules')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_modules', 'training_hours')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_modules` ADD `training_hours` DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER `name` ");
+        }
+    }
+
+    if ($DB->tableExists('glpi_plugin_taskmaster_implementations')) {
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementations', 'users_id_responsible')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD `users_id_responsible` INT UNSIGNED NOT NULL DEFAULT 0 AFTER `entities_id` ");
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD KEY `analyst` (`users_id_responsible`) ");
+        }
+        if (!$DB->columnExists('glpi_plugin_taskmaster_implementations', 'date_begin')) {
+            $DB->query("ALTER TABLE `glpi_plugin_taskmaster_implementations` ADD `date_begin` DATETIME DEFAULT NULL AFTER `users_id_responsible` ");
+        }
+    }
+
+    // Migração de chaves primárias e estrangeiras para UNSIGNED (padrão de boas práticas GLPI)
+    $unsignedCols = [
+        'glpi_plugin_taskmaster_modules' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT'
+        ],
+        'glpi_plugin_taskmaster_tasks' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'plugin_taskmaster_modules_id' => 'INT UNSIGNED NOT NULL'
+        ],
+        'glpi_plugin_taskmaster_subtasks' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'plugin_taskmaster_tasks_id' => 'INT UNSIGNED NOT NULL'
+        ],
+        'glpi_plugin_taskmaster_implementations' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'entities_id' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+            'users_id_responsible' => 'INT UNSIGNED NOT NULL DEFAULT 0'
+        ],
+        'glpi_plugin_taskmaster_implementations_modules' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'plugin_taskmaster_implementations_id' => 'INT UNSIGNED NOT NULL',
+            'plugin_taskmaster_modules_id' => 'INT UNSIGNED NOT NULL'
+        ],
+        'glpi_plugin_taskmaster_implementationtasks' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'plugin_taskmaster_implementations_id' => 'INT UNSIGNED NOT NULL',
+            'plugin_taskmaster_tasks_id' => 'INT UNSIGNED NOT NULL',
+            'users_id_analyst' => 'INT UNSIGNED DEFAULT 0'
+        ],
+        'glpi_plugin_taskmaster_implementationsubtasks' => [
+            'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+            'plugin_taskmaster_implementationtasks_id' => 'INT UNSIGNED NOT NULL',
+            'plugin_taskmaster_subtasks_id' => 'INT UNSIGNED NOT NULL',
+            'users_id_analyst' => 'INT UNSIGNED DEFAULT 0'
+        ]
+    ];
+
+    foreach ($unsignedCols as $table => $cols) {
+        if ($DB->tableExists($table)) {
+            foreach ($cols as $col => $definition) {
+                if ($DB->columnExists($table, $col)) {
+                    $DB->query("ALTER TABLE `$table` MODIFY `$col` $definition");
+                }
+            }
         }
     }
 

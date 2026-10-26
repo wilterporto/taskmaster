@@ -4,7 +4,7 @@ include ("../../../inc/includes.php");
 
 Session::checkRight("plugin_taskmaster_implementation", READ);
 
-Html::header(PluginTaskmasterImplementation::getTypeName(Session::getPluralNumber()), $_SERVER['PHP_SELF'], "tools", "PluginTaskmasterImplementation");
+Html::header(PluginTaskmasterImplementation::getTypeName(Session::getPluralNumber()), PluginTaskmasterImplementation::getSearchURL(), "tools", "PluginTaskmasterImplementation");
 
 $_SESSION['glpilist_limit'] = 30;
 

@@ -17,23 +17,23 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         return "fas fa-truck-loading";
     }
 
-    static function canCreate() {
+    static function canCreate(): bool {
         return Session::haveRight('plugin_taskmaster_implementation', CREATE);
     }
     
-    static function canView() {
+    static function canView(): bool {
         return Session::haveRight('plugin_taskmaster_implementation', READ);
     }
     
-    static function canUpdate() {
+    static function canUpdate(): bool {
         return Session::haveRight('plugin_taskmaster_implementation', UPDATE);
     }
     
-    static function canDelete() {
+    static function canDelete(): bool {
         return Session::haveRight('plugin_taskmaster_implementation', PURGE);
     }
 
-    public function canCreateItem() {
+    public function canCreateItem(): bool {
         return self::canCreate();
     }
 
@@ -41,7 +41,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         return true;
     }
 
-    public function canUpdateItem() {
+    public function canUpdateItem(): bool {
         return self::canUpdate();
     }
 
@@ -552,7 +552,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         echo "</div>";
 
         echo "<div class='center' style='margin-bottom: 20px;'>";
-        echo "<form method='get' action='".$_SERVER['PHP_SELF']."'>";
+        echo "<form method='get' action='".self::getSearchURL()."'>";
         echo "<table class='tab_cadre_fixe' style='width: auto;'>";
         echo "<tr>";
         echo "<th colspan='6'>Filtros</th>";
@@ -570,7 +570,7 @@ class PluginTaskmasterImplementation extends CommonDBTM {
         User::dropdown(['name' => 'users_id_responsible', 'value' => $users_id_responsible, 'display_emptychoice' => true, 'right' => 'plugin_taskmaster_implementation', 'entity' => -1]);
         echo "</td>";
         echo "<td><input type='submit' value='Filtrar' class='btn btn-primary'></td>";
-        echo "<td><a href='".$_SERVER['PHP_SELF']."' class='btn btn-secondary'>Limpar</a></td>";
+        echo "<td><a href='".self::getSearchURL()."' class='btn btn-secondary'>Limpar</a></td>";
         echo "</tr>";
         echo "</table>";
         echo "</form>";
@@ -607,7 +607,16 @@ class PluginTaskmasterImplementation extends CommonDBTM {
             $total = $row['c'];
         }
 
-        Html::printPager($start, $total, $_SERVER['PHP_SELF'], ($entities_id >= 0 ? "&entities_id=$entities_id" : "") . ($users_id_responsible > 0 ? "&users_id_responsible=$users_id_responsible" : ""), 0);
+        $pager_params = [];
+        if ($entities_id >= 0) {
+            $pager_params['entities_id'] = $entities_id;
+        }
+        if ($users_id_responsible > 0) {
+            $pager_params['users_id_responsible'] = $users_id_responsible;
+        }
+        $param_str = http_build_query($pager_params);
+
+        Html::printPager($start, $total, self::getSearchURL(), $param_str, 0);
 
         echo "<div class='center'>";
         echo "<table class='tab_cadre_fixehov'>";
@@ -696,9 +705,9 @@ class PluginTaskmasterImplementation extends CommonDBTM {
 
         echo "</table>";
         echo "</div>";
+        Html::printPager($start, $total, self::getSearchURL(), $param_str, 0);
     }
 
-    
     public static function getStatusName($status) {
         $statuses = [
             0 => 'Não iniciado',
